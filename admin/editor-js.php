@@ -1,12 +1,13 @@
+<?php if(!defined('__TYPECHO_ROOT_DIR__')) exit; ?>
 <?php $content = !empty($post) ? $post : $page; if ($options->markdown && (!$content->have() || $content->isMarkdown)): ?>
-<script src="<?php $options->adminUrl('js/marked.js?v=' . $suffixVersion); ?>"></script>
 <script src="<?php $options->adminUrl('js/pagedown.js?v=' . $suffixVersion); ?>"></script>
+<script src="<?php $options->adminUrl('js/pagedown-extra.js?v=' . $suffixVersion); ?>"></script>
 <script src="<?php $options->adminUrl('js/diff.js?v=' . $suffixVersion); ?>"></script>
 <script>
 $(document).ready(function () {
     var textarea = $('#text'),
         toolbar = $('<div class="editor" id="wmd-button-bar" />').insertBefore(textarea.parent())
-        preview = $('<div id="wmd-preview" />').insertAfter('.submit');
+        preview = $('<div id="wmd-preview" class="wmd-hidetab" />').insertAfter('.editor');
 
     var options = {};
 
@@ -56,18 +57,20 @@ $(document).ready(function () {
         help: '<?php _e('Markdown语法帮助'); ?>'
     };
 
-    var editor = new Markdown.Editor(marked, '', options),
+    var converter = new Markdown.Converter(),
+        editor = new Markdown.Editor(converter, '', options),
         diffMatch = new diff_match_patch(), last = '', preview = $('#wmd-preview'),
         mark = '@mark' + Math.ceil(Math.random() * 100000000) + '@',
         span = '<span class="diff" />';
     
     // 设置markdown
-    marked.setOptions({
-        breaks      :   true
+    Markdown.Extra.init(converter, {
+        extensions  :   'all'
     });
 
     // 自动跟随
-    editor.hooks.chain('postMarkdown', function (html) {
+    converter.hooks.chain('postConversion', function (html) {
+        // clear special html tags
         html = html.replace(/<\/?(\!doctype|html|head|body|link|title|input|select|button|textarea|style|noscript)[^>]*>/ig, function (all) {
             return all.replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
@@ -75,6 +78,9 @@ $(document).ready(function () {
                 .replace(/'/g, '&#039;')
                 .replace(/"/g, '&quot;');
         });
+
+        // clear hard breaks
+        html = html.replace(/\s*((?:<br>\n)+)\s*(<\/?(?:p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|address|form|fieldset|iframe|hr|legend|article|section|nav|aside|hgroup|header|footer|figcaption|li|dd|dt)[^\w])/gm, '$2');
 
         if (html.indexOf('<!--more-->') > 0) {
             var parts = html.split(/\s*<\!\-\-more\-\->\s*/),
@@ -137,7 +143,15 @@ $(document).ready(function () {
     });
 
     editor.hooks.chain('onPreviewRefresh', function () {
-        var diff = $('.diff', preview);
+        var diff = $('.diff', preview), scrolled = false;
+
+        $('img', preview).load(function () {
+            if (scrolled) {
+                preview.scrollTo(diff, {
+                    offset  :   - 50
+                });
+            }
+        });
 
         if (diff.length > 0) {
             var p = diff.position(), lh = diff.parent().css('line-height');
@@ -147,14 +161,16 @@ $(document).ready(function () {
                 preview.scrollTo(diff, {
                     offset  :   - 50
                 });
+                scrolled = true;
             }
         }
     });
 
-    var input = $('#text'), th = textarea.height();
+    var input = $('#text'), th = textarea.height(), ph = preview.height();
 
     editor.hooks.chain('enterFakeFullScreen', function () {
         th = textarea.height();
+        ph = preview.height();
         $(document.body).addClass('fullscreen');
         var h = $(window).height() - toolbar.outerHeight();
         
@@ -173,7 +189,7 @@ $(document).ready(function () {
     editor.hooks.chain('exitFullScreen', function () {
         $(document.body).removeClass('fullscreen');
         textarea.height(th);
-        preview.css('height', 'auto');
+        preview.height(ph);
     });
 
     editor.run();
@@ -195,6 +211,32 @@ $(document).ready(function () {
             }
         }, 10);
     };
+
+
+    // 编辑预览切换
+    var edittab = $('.editor').prepend('<div class="wmd-edittab"><a href="#wmd-editarea" class="active">撰写</a><a href="#wmd-preview">预览</a></div>'),
+        editarea = $(textarea.parent()).attr("id", "wmd-editarea");
+
+    $(".wmd-edittab a").click(function() {
+        $(".wmd-edittab a").removeClass('active');
+        $(this).addClass("active");
+        $("#wmd-editarea, #wmd-preview").addClass("wmd-hidetab");
+        
+        var selected_tab = $(this).attr("href"),
+            selected_el = $(selected_tab).removeClass("wmd-hidetab");
+
+        // 预览时隐藏编辑器按钮
+        if (selected_tab == "#wmd-preview") {
+            $("#wmd-button-row").addClass("wmd-visualhide");
+        } else {
+            $("#wmd-button-row").removeClass("wmd-visualhide");
+        }
+
+        // 预览和编辑窗口高度一致
+        $("#wmd-preview").outerHeight($("#wmd-editarea").innerHeight());
+
+        return false;
+    });
 });
 </script>
 <?php endif; ?>

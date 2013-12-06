@@ -20,7 +20,7 @@
 class Typecho_Common
 {
     /** 程序版本 */
-    const VERSION = '0.9/13.11.17';
+    const VERSION = '0.9/13.12.6';
 
     /**
      * 缓存的包含路径
@@ -112,54 +112,38 @@ class Typecho_Common
         $safePath = rtrim(__TYPECHO_ROOT_DIR__, '/');
         return 0 === strpos($path, $safePath);
     }
-    
+
     /**
-     * html标签过滤
+     * __filterAttrs  
      * 
+     * @param mixed $matches 
+     * @static
      * @access public
-     * @param string $tag 标签
-     * @param string $attrs 属性
-     * @return string
+     * @return void
      */
-    public static function __tagFilter($tag, $attrs)
+    public static function __filterAttrs($matches)
     {
-
-        $suffix = '';
-        $tag = strtolower($tag);
-        
-        if (false === strpos(self::$_allowableTags, "|{$tag}|")) {
-            return '';
+        if (!isset($matches[2])) {
+            return $matches[0];
         }
-        
-        if (!empty($attrs)) {
-            $result = self::__parseAtttrs($attrs);
-            $attrs = '';
-            
-            foreach ($result as $name => $val) {
-                $quote = '';
-                $lname = strtolower($name);
-                $lval = self::__attrTrim($val, $quote);
 
-                if (in_array($lname, self::$_allowableAttributes[$tag])) {
-                    $attrs .= ' ' . $name . (empty($val) ? '' : '=' . $val);
-                }
+        $str = trim($matches[2]);
+
+        if (empty($str)) {
+            return $matches[0];
+        }
+
+        $attrs = self::__parseAttrs($str);
+        $parsedAttrs = array();
+        $tag = strtolower($matches[1]);
+
+        foreach ($attrs as $key => $val) {
+            if (in_array($key, self::$_allowableAttributes[$tag])) {
+                $parsedAttrs[] = " {$key}" . (empty($val) ? '' : "={$val}");
             }
         }
-        
-        return "<{$tag}{$attrs}>";
-    }
 
-    /**
-     * 自闭合标签过滤
-     * 
-     * @access public
-     * @param array $matches 匹配值
-     * @return string
-     */
-    public static function __closeTagFilter($matches)
-    {
-        $tag = strtolower($matches[1]);
-        return false === strpos(self::$_allowableTags, "|{$tag}|") ? '' : "</{$tag}>";
+        return '<' . $tag . implode('', $parsedAttrs) . '>';
     }
     
     /**
@@ -169,7 +153,7 @@ class Typecho_Common
      * @param string $attrs 属性字符串
      * @return array
      */
-    public static function __parseAtttrs($attrs)
+    public static function __parseAttrs($attrs)
     {
         $attrs = trim($attrs);
         $len = strlen($attrs);
@@ -221,30 +205,6 @@ class Typecho_Common
         }
         
         return $result;
-    }
-
-    /**
-     * 清除属性空格
-     * 
-     * @access public
-     * @param string $attr 属性
-     * @param string $quote 引号
-     * @return string
-     */
-    public static function __attrTrim($attr, &$quote)
-    {
-        $attr = trim($attr);
-        $attr_len = strlen($attr);
-        $quote = '';
-        
-        if ($attr_len >= 2 &&
-            ('"' == $attr[0] || "'" == $attr[0]) 
-            && $attr[0] == $attr[$attr_len - 1]) {
-            $quote = $attr[0];
-            return trim(substr($attr, 1, -1));
-        }
-        
-        return $attr;
     }
 
     /**
@@ -633,72 +593,26 @@ EOF;
      */
     public static function stripTags($html, $allowableTags = NULL)
     {
-        if (!empty($allowableTags) && preg_match_all("/\<([a-z]+)([^>]*)\>/is", $allowableTags, $tags)) {
-            self::$_allowableTags = '|' . implode('|', $tags[1]) . '|';
+        static $dom;
 
-            if (in_array('code', $tags[1])) {
-                $html = self::lockHTML($html);
-            }
+        $normalizeTags = '';
+        $allowableAttributes = array();
 
-            $normalizeTags = '<' . implode('><', $tags[1]) . '>';
-            $html = strip_tags($html, $normalizeTags);
+        if (!empty($allowableTags) && preg_match_all("/\<([_a-z0-9-]+)([^>]*)\>/is", $allowableTags, $tags)) {
+            $normalizeTags = '<' . implode('><', array_map('strtolower', $tags[1])) . '>';
             $attributes = array_map('trim', $tags[2]);
-
-            $allowableAttributes = array();
             foreach ($attributes as $key => $val) {
-                $allowableAttributes[$tags[1][$key]] = array_keys(self::__parseAtttrs($val));
+                $allowableAttributes[strtolower($tags[1][$key])] = 
+                    array_map('strtolower', array_keys(self::__parseAttrs($val)));
             }
-            
-            self::$_allowableAttributes = $allowableAttributes;
-
-            $len = strlen($html);
-            $tag = '';
-            $attrs = '';
-            $pos = -1;
-            $quote = '';
-            $start = 0;
-            
-            for ($i = 0;  $i < $len; $i ++) {
-                if ('<' == $html[$i] && -1 == $pos) {
-                    $start = $i;
-                    $pos = 0;
-                } else if (0 == $pos && '/' == $html[$i] && empty($tag)) {
-                    $pos = -1;
-                } else if (0 == $pos && ctype_alpha($html[$i])) {
-                    $tag .= $html[$i];
-                } else if (0 == $pos && ctype_space($html[$i])) {
-                    $pos = 1;
-                } else if (1 == $pos && (!empty($quote) || '>' != $html[$i])) {
-                    if (empty($quote) && ('"' == $html[$i] || "'" == $html[$i])) {
-                        $quote = $html[$i];
-                    } else if (!empty($quote) && $quote == $html[$i]) {
-                        $quote = '';
-                    }
-                
-                    $attrs .= $html[$i];
-                } else if (-1 != $pos && empty($quote) && '>' == $html[$i]) {
-                    $out = self::__tagFilter($tag, $attrs);
-                    $outLen = strlen($out);
-                    $nextStart = $start + $outLen;
-                    
-                    $tag = '';
-                    $attrs = '';
-                    $html = substr_replace($html, $out, $start, $i - $start + 1);
-                    $len  = strlen($html);
-                    $i = $nextStart - 1;
-                    
-                    $pos = -1;
-                }
-            }
-            
-            $html = preg_replace_callback("/<\/([_0-9a-z-]+)>/is", array('Typecho_Common', '__closeTagFilter'), $html);
-             $html = self::releaseHTML($html);
-        } else {
-            $html = strip_tags($html);
         }
-        
-        //去掉注释
-        return preg_replace("/<\!\-\-[^>]*\-\->/s", '', $html);
+
+        self::$_allowableAttributes = $allowableAttributes;
+        $html = strip_tags($html, $normalizeTags);
+        $html = preg_replace_callback("/<([_a-z0-9-]+)(\s+[^>]+)?>/is",
+            array('Typecho_Common', '__filterAttrs'), $html);
+
+        return $html;
     }
 
     /**

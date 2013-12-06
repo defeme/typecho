@@ -78,7 +78,7 @@ class Widget_Archive extends Widget_Abstract_Contents
      * @access private
      * @var array
      */
-    private $_pageRow;
+    private $_pageRow = array();
 
     /**
      * 聚合器对象
@@ -584,6 +584,38 @@ class Widget_Archive extends Widget_Abstract_Contents
     public function getThemeDir()
     {
         return $this->_themeDir;
+    }
+
+    /**
+     * 检查链接是否正确
+     * 
+     * @access private
+     * @return void
+     */
+    private function checkPermalink()
+    {
+        $type = $this->parameter->type;
+
+        if ('index' == $type                        // 首页跳转不用处理
+            || $this->_makeSinglePageAsFrontPage    // 自定义首页不处理
+            || $this->_invokeByFeed                 // 不要处理feed
+            || $this->_invokeFromOutside) {         // 不要处理外部调用
+            return;
+        }
+        
+        $value = array(
+            'page'  =>  $this->_currentPage
+        );
+        $value = array_merge($this->_archiveSingle ? $this->row
+ : $this->_pageRow, $value);
+
+        $path = Typecho_Router::url($type, $value);
+        $permalink = Typecho_Common::url($path, $this->options->index);
+        $requestUrl = $this->request->getRequestUrl();
+
+        if ($permalink != $requestUrl) {
+            $this->response->redirect($permalink, true);
+        }
     }
 
     /**
@@ -1239,7 +1271,7 @@ class Widget_Archive extends Widget_Abstract_Contents
                             (table.contents.status = ? AND table.contents.authorId = ?)',
                             'publish', 'hidden', 'private', $this->user->uid);
                 } else {
-                    $select = $this->select()->where('table.contents.status = ? OR table.contents.status',
+                    $select = $this->select()->where('table.contents.status = ? OR table.contents.status = ?',
                             'publish', 'hidden');
                 }
             } else {
@@ -1278,6 +1310,9 @@ class Widget_Archive extends Widget_Abstract_Contents
                 themeInit($this);
             }
         }
+
+        /** 处理静态链接跳转 */
+        $this->checkPermalink();
 
         /** 如果已经提前压入则直接返回 */
         if ($hasPushed) {
@@ -1319,16 +1354,18 @@ class Widget_Archive extends Widget_Abstract_Contents
     {
         if ($this->have()) {
             $hasNav = false;
-            $this->pluginHandle()->trigger($hasNav)->pageNav($prev, $next, $splitPage, $splitWord);
+            $this->_total = (false === $this->_total ? $this->size($this->_countSql) : $this->_total);
+            $this->pluginHandle()->trigger($hasNav)->pageNav($this->_currentPage, $this->_total, 
+                $this->parameter->pageSize, $prev, $next, $splitPage, $splitWord);
 
-            if (!$hasNav) {
+            if (!$hasNav && $this->_total > $this->parameter->pageSize) {
                 $query = Typecho_Router::url($this->parameter->type .
                 (false === strpos($this->parameter->type, '_page') ? '_page' : NULL),
                 $this->_pageRow, $this->options->index);
 
                 /** 使用盒状分页 */
-                $nav = new Typecho_Widget_Helper_PageNavigator_Box(false === $this->_total ? $this->_total = $this->size($this->_countSql) : $this->_total,
-                $this->_currentPage, $this->parameter->pageSize, $query);
+                $nav = new Typecho_Widget_Helper_PageNavigator_Box($this->_total, 
+                    $this->_currentPage, $this->parameter->pageSize, $query);
                 
                 echo '<ol class="' . $class . '">';
                 $nav->render($prev, $next, $splitPage, $splitWord, $currentClass);
@@ -1370,8 +1407,13 @@ class Widget_Archive extends Widget_Abstract_Contents
      */
     public function comments()
     {
-        $parameter = array('parentId' => $this->hidden ? 0 : $this->cid, 'parentContent' => $this->row,
-        'respondId' => $this->respondId, 'commentPage' => $this->request->filter('int')->commentPage);
+        $parameter = array(
+            'parentId'      => $this->hidden ? 0 : $this->cid,
+            'parentContent' => $this->row,
+            'respondId'     => $this->respondId,
+            'commentPage'   => $this->request->filter('int')->commentPage,
+            'allowComment'  => $this->allow('comment')
+        );
 
         return $this->widget('Widget_Comments_Archive', $parameter);
     }
@@ -1384,8 +1426,11 @@ class Widget_Archive extends Widget_Abstract_Contents
      */
     public function pings()
     {
-        return $this->widget('Widget_Comments_Ping', array('parentId' => $this->hidden ? 0 : $this->cid,
-                    'parentContent' => $this->row));
+        return $this->widget('Widget_Comments_Ping', array(
+            'parentId'      => $this->hidden ? 0 : $this->cid,
+            'parentContent' => $this->row,
+            'allowPing'     =>  $this->allow('ping')
+        ));
     }
 
     /**

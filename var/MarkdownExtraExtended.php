@@ -146,10 +146,21 @@ class Markdown {
 		$this->teardown();
 
         $text = preg_replace_callback("/<\/?(\!doctype|html|head|body|link|title|input|select|button|textarea|style|noscript)[^>]*>/is", 
-            'htmlspecialchars', $text);
+            array($this, '_doEscape_callback'), $text);
 
 		return $text . "\n";
 	}
+
+    /**
+     * _doEscape_callback  
+     * 
+     * @param array $matches 
+     * @access protected
+     * @return string
+     */
+    protected function _doEscape_callback($matches) {
+        return htmlspecialchars($matches[0], ENT_NOQUOTES);
+    }
 	
 	protected $document_gamut = array(
 		# Strip link definitions, store in hashes.
@@ -189,7 +200,7 @@ class Markdown {
 							)?	# title is optional
 							(?:\n+|\Z)
 			}xm',
-			array(&$this, '_stripLinkDefinitions_callback'),
+			array($this, '_stripLinkDefinitions_callback'),
 			$text);
 		return $text;
 	}
@@ -336,7 +347,7 @@ class Markdown {
 					
 			)
 			)}Sxmi',
-			array(&$this, '_hashHTMLBlocks_callback'),
+			array($this, '_hashHTMLBlocks_callback'),
 			$text);
 
 		return $text;
@@ -480,7 +491,7 @@ class Markdown {
 	protected function doHardBreaks($text) {
 		# Do hard breaks:
 		return preg_replace_callback('/ {2,}\n/', 
-			array(&$this, '_doHardBreaks_callback'), $text);
+			array($this, '_doHardBreaks_callback'), $text);
 	}
 	protected function _doHardBreaks_callback($matches) {
 		return $this->hashPart("<br$this->empty_element_suffix\n");
@@ -511,7 +522,7 @@ class Markdown {
 			  \]
 			)
 			}xs',
-			array(&$this, '_doAnchors_reference_callback'), $text);
+			array($this, '_doAnchors_reference_callback'), $text);
 
 		#
 		# Next, inline-style links: [link text](url "optional title")
@@ -538,7 +549,7 @@ class Markdown {
 			  \)
 			)
 			}xs',
-			array(&$this, '_doAnchors_inline_callback'), $text);
+			array($this, '_doAnchors_inline_callback'), $text);
 
 		#
 		# Last, handle reference-style shortcuts: [link text]
@@ -552,7 +563,7 @@ class Markdown {
 			  \]
 			)
 			}xs',
-			array(&$this, '_doAnchors_reference_callback'), $text);
+			array($this, '_doAnchors_reference_callback'), $text);
 
 		$this->in_anchor = false;
 		return $text;
@@ -634,7 +645,7 @@ class Markdown {
 
 			)
 			}xs', 
-			array(&$this, '_doImages_reference_callback'), $text);
+			array($this, '_doImages_reference_callback'), $text);
 
 		#
 		# Next, handle inline images:  ![alt text](url "optional title")
@@ -663,7 +674,7 @@ class Markdown {
 			  \)
 			)
 			}xs',
-			array(&$this, '_doImages_inline_callback'), $text);
+			array($this, '_doImages_inline_callback'), $text);
 
 		return $text;
 	}
@@ -723,7 +734,7 @@ class Markdown {
 		#	  --------
 		#
 		$text = preg_replace_callback('{ ^(.+?)[ ]*\n(=+|-+)[ ]*\n+ }mx',
-			array(&$this, '_doHeaders_callback_setext'), $text);
+			array($this, '_doHeaders_callback_setext'), $text);
 
 		# atx-style headers:
 		#	# Header 1
@@ -740,7 +751,7 @@ class Markdown {
 				\#*			# optional closing #\'s (not counted)
 				\n+
 			}xm',
-			array(&$this, '_doHeaders_callback_atx'), $text);
+			array($this, '_doHeaders_callback_atx'), $text);
 
 		return $text;
 	}
@@ -813,14 +824,14 @@ class Markdown {
 						^
 						'.$whole_list_re.'
 					}mx',
-					array(&$this, '_doLists_callback'), $text);
+					array($this, '_doLists_callback'), $text);
 			}
 			else {
 				$text = preg_replace_callback('{
-						(?:(?<=\n)\n|\A\n?) # Must eat the newline
+						(?:(?<=\n)\n?|\A\n?) # Must eat the newline
 						'.$whole_list_re.'
 					}mx',
-					array(&$this, '_doLists_callback'), $text);
+					array($this, '_doLists_callback'), $text);
 			}
 		}
 
@@ -887,7 +898,7 @@ class Markdown {
 			(?:(\n+(?=\n))|\n)				# tailing blank line = $5
 			(?= \n* (\z | \2 ('.$marker_any_re.') (?:[ ]+|(?=\n))))
 			}xm',
-			array(&$this, '_processListItems_callback'), $list_str);
+			array($this, '_processListItems_callback'), $list_str);
 
 		$this->list_level--;
 		return $list_str;
@@ -931,12 +942,12 @@ class Markdown {
 				)
 				((?=^[ ]{0,'.$this->tab_width.'}\S)|\Z)	# Lookahead for non-space at line-start, or end of doc
 			}xm',
-			array(&$this, '_doCodeBlocks_callback'), $text);
+			array($this, '_doCodeBlocks_callback'), $text);
 
 		return $text;
 	}
 	protected function _doCodeBlocks_callback($matches) {
-		$codeblock = $matches[1];
+		$codeblock = $this->unhashHTMLBlocks($matches[1]);
 
 		$codeblock = $this->outdent($codeblock);
 		$codeblock = htmlspecialchars($codeblock, ENT_NOQUOTES);
@@ -1131,7 +1142,7 @@ class Markdown {
 				)+
 			  )
 			/xm',
-			array(&$this, '_doBlockQuotes_callback'), $text);
+			array($this, '_doBlockQuotes_callback'), $text);
 
 		return $text;
 	}
@@ -1145,7 +1156,7 @@ class Markdown {
 		# These leading spaces cause problem with <pre> content, 
 		# so we need to fix that:
 		$bq = preg_replace_callback('{(\s*<pre>.+?</pre>)}sx', 
-			array(&$this, '_doBlockQuotes_callback2'), $bq);
+			array($this, '_doBlockQuotes_callback2'), $bq);
 
 		return "\n". $this->hashBlock("<blockquote>\n$bq\n</blockquote>")."\n\n";
 	}
@@ -1259,8 +1270,10 @@ class Markdown {
 
 
 	protected function doAutoLinks($text) {
+		$text = preg_replace_callback('/(="|<)?\b(https?|ftp)(:\/\/[-A-Z0-9+&@#\/%?=~_|\[\]\(\)!:,\.;]*[-A-Z0-9+&@#\/%=~_|\[\])])(?=$|\W)/i', 
+			array($this, '_doAutoLinks_url_callback'), $text);
 		$text = preg_replace_callback('{<((https?|ftp|dict):[^\'">\s]+)>}i', 
-			array(&$this, '_doAutoLinks_url_callback'), $text);
+			array($this, '_doAutoLinks_url_callback_replace'), $text);
 
 		# Email addresses: <address@domain.foo>
 		$text = preg_replace_callback('{
@@ -1281,21 +1294,65 @@ class Markdown {
 			)
 			>
 			}xi',
-			array(&$this, '_doAutoLinks_email_callback'), $text);
+			array($this, '_doAutoLinks_email_callback'), $text);
 
 		return $text;
 	}
+    protected function _doAutoLinks_url_callback_replace($matches) {
+        $url = $this->encodeAttribute($matches[1]);
+        $link = "<a rel=\"nofollow\" href=\"$url\">$url</a>";
+        return $this->hashPart($link);
+    }
+
+    private $tail;
+
 	protected function _doAutoLinks_url_callback($matches) {
-		$url = $this->encodeAttribute($matches[1]);
-		$link = "<a href=\"$url\">$url</a>";
-		return $this->hashPart($link);
+        list ($wholeMatch, $lookbehind, $protocol, $link) = $matches;
+
+        if ($lookbehind) {
+            return $wholeMatch;
+        }
+
+        if ($link[strlen($link) - 1] != ')') {
+            return '<' . $protocol . $link . '>';
+        }
+
+        $level = 0;
+        if (preg_match_all("/[()]/", $link, $matches)) {
+            foreach ($matches[0] as $op) {
+                if ('(' == $op) {
+                    if ($level <= 0) {
+                        $level = 1;
+                    } else {
+                        $level ++;
+                    }
+                } else {
+                    $level --;
+                }
+            }
+        }
+
+        $this->tail = '';
+        if ($level < 0) {
+            $link = preg_replace_callback("/\){1," . (- $level) . "}$/", 
+                array($this, '_doAutoLinks_url_callback_callback'), $link);
+        }
+
+		$url = $this->encodeAttribute($protocol . $link);
+		$link = "<a rel=\"nofollow\" href=\"$url\">$url</a>";
+		return $this->hashPart($link) . $this->tail;
 	}
+
 	protected function _doAutoLinks_email_callback($matches) {
 		$address = $matches[1];
 		$link = $this->encodeEmailAddress($address);
 		return $this->hashPart($link);
 	}
 
+    protected function _doAutoLinks_url_callback_callback($matches) {
+        $this->tail = $matches[0];
+        return '';
+    }
 
 	protected function encodeEmailAddress($addr) {
 	#
@@ -1443,7 +1500,7 @@ class Markdown {
 		# appropriate number of space between each blocks.
 		
 		$text = preg_replace_callback('/^.*\t.*$/m',
-			array(&$this, '_detab_callback'), $text);
+			array($this, '_detab_callback'), $text);
 
 		return $text;
 	}
@@ -1483,12 +1540,16 @@ class Markdown {
 	# Swap back in all the tags hashed by _HashHTMLBlocks.
 	#
 		return preg_replace_callback('/(.)\x1A[0-9]+\1/', 
-			array(&$this, '_unhash_callback'), $text);
+			array($this, '_unhash_callback'), $text);
 	}
 	protected function _unhash_callback($matches) {
-		return $this->html_hashes[$matches[0]];
+		return $this->html_hashes[trim($matches[0])];
 	}
 
+    protected function unhashHTMLBlocks($text) {
+		return preg_replace_callback("/\n\n(.)\\x1A[0-9]+\\1\n\n/", 
+			array($this, '_unhash_callback'), $text);
+    }
 }
 
 #
@@ -1688,7 +1749,7 @@ class MarkdownExtra extends Markdown {
 					(?:[ ]* '.$this->id_class_attr_catch_re.' )?  # $5 = extra id & class attr
 							(?:\n+|\Z)
 			}xm',
-			array(&$this, '_stripLinkDefinitions_callback'),
+			array($this, '_stripLinkDefinitions_callback'),
 			$text);
 		return $text;
 	}
@@ -2193,7 +2254,7 @@ class MarkdownExtra extends Markdown {
 			  \]
 			)
 			}xs',
-			array(&$this, '_doAnchors_reference_callback'), $text);
+			array($this, '_doAnchors_reference_callback'), $text);
 
 		#
 		# Next, inline-style links: [link text](url "optional title")
@@ -2221,7 +2282,7 @@ class MarkdownExtra extends Markdown {
 			  (?:[ ]? '.$this->id_class_attr_catch_re.' )?	 # $8 = id/class attributes
 			)
 			}xs',
-			array(&$this, '_doAnchors_inline_callback'), $text);
+			array($this, '_doAnchors_inline_callback'), $text);
 
 		#
 		# Last, handle reference-style shortcuts: [link text]
@@ -2235,7 +2296,7 @@ class MarkdownExtra extends Markdown {
 			  \]
 			)
 			}xs',
-			array(&$this, '_doAnchors_reference_callback'), $text);
+			array($this, '_doAnchors_reference_callback'), $text);
 
 		$this->in_anchor = false;
 		return $text;
@@ -2258,7 +2319,7 @@ class MarkdownExtra extends Markdown {
 			$url = $this->urls[$link_id];
 			$url = $this->encodeAttribute($url);
 			
-			$result = "<a href=\"$url\"";
+			$result = "<a rel=\"nofollow\" href=\"$url\"";
 			if ( isset( $this->titles[$link_id] ) ) {
 				$title = $this->titles[$link_id];
 				$title = $this->encodeAttribute($title);
@@ -2286,7 +2347,7 @@ class MarkdownExtra extends Markdown {
 
 		$url = $this->encodeAttribute($url);
 
-		$result = "<a href=\"$url\"";
+		$result = "<a rel=\"nofollow\" href=\"$url\"";
 		if (isset($title)) {
 			$title = $this->encodeAttribute($title);
 			$result .=  " title=\"$title\"";
@@ -2322,7 +2383,7 @@ class MarkdownExtra extends Markdown {
 
 			)
 			}xs', 
-			array(&$this, '_doImages_reference_callback'), $text);
+			array($this, '_doImages_reference_callback'), $text);
 
 		#
 		# Next, handle inline images:  ![alt text](url "optional title")
@@ -2352,7 +2413,7 @@ class MarkdownExtra extends Markdown {
 			  (?:[ ]? '.$this->id_class_attr_catch_re.' )?	 # $8 = id/class attributes
 			)
 			}xs',
-			array(&$this, '_doImages_inline_callback'), $text);
+			array($this, '_doImages_inline_callback'), $text);
 
 		return $text;
 	}
@@ -2424,7 +2485,7 @@ class MarkdownExtra extends Markdown {
 				(?:[ ]+ '.$this->id_class_attr_catch_re.' )?	 # $3 = id/class attributes
 				[ ]*\n(=+|-+)[ ]*\n+				# $3: Header footer
 			}mx',
-			array(&$this, '_doHeaders_callback_setext'), $text);
+			array($this, '_doHeaders_callback_setext'), $text);
 
 		# atx-style headers:
 		#	# Header 1        {#header1}
@@ -2443,7 +2504,7 @@ class MarkdownExtra extends Markdown {
 				[ ]*
 				\n+
 			}xm',
-			array(&$this, '_doHeaders_callback_atx'), $text);
+			array($this, '_doHeaders_callback_atx'), $text);
 
 		return $text;
 	}
@@ -2494,7 +2555,7 @@ class MarkdownExtra extends Markdown {
 				)
 				(?=\n|\Z)					# Stop at final double newline.
 			}xm',
-			array(&$this, '_doTable_leadingPipe_callback'), $text);
+			array($this, '_doTable_leadingPipe_callback'), $text);
 		
 		#
 		# Find tables without leading pipe.
@@ -2520,7 +2581,7 @@ class MarkdownExtra extends Markdown {
 				)
 				(?=\n|\Z)					# Stop at final double newline.
 			}xm',
-			array(&$this, '_DoTable_callback'), $text);
+			array($this, '_DoTable_callback'), $text);
 
 		return $text;
 	}
@@ -2644,7 +2705,7 @@ class MarkdownExtra extends Markdown {
 				(?>\A\n?|(?<=\n\n))
 				'.$whole_list_re.'
 			}mx',
-			array(&$this, '_doDefLists_callback'), $text);
+			array($this, '_doDefLists_callback'), $text);
 
 		return $text;
 	}
@@ -2682,7 +2743,7 @@ class MarkdownExtra extends Markdown {
 			(?=\n?[ ]{0,3}:[ ])				# lookahead for following line feed 
 											#   with a definition mark.
 			}xm',
-			array(&$this, '_processDefListItems_callback_dt'), $list_str);
+			array($this, '_processDefListItems_callback_dt'), $list_str);
 
 		# Process actual definitions.
 		$list_str = preg_replace_callback('{
@@ -2699,7 +2760,7 @@ class MarkdownExtra extends Markdown {
 				)						
 			)					
 			}xm',
-			array(&$this, '_processDefListItems_callback_dd'), $list_str);
+			array($this, '_processDefListItems_callback_dd'), $list_str);
 
 		return $list_str;
 	}
@@ -2767,7 +2828,7 @@ class MarkdownExtra extends Markdown {
 				# Closing marker.
 				\1 [ ]* \n
 			}xm',
-			array(&$this, '_doFencedCodeBlocks_callback'), $text);
+			array($this, '_doFencedCodeBlocks_callback'), $text);
 
 		return $text;
 	}
@@ -2777,7 +2838,7 @@ class MarkdownExtra extends Markdown {
 		$codeblock = $matches[4];
 		$codeblock = htmlspecialchars($codeblock, ENT_NOQUOTES);
 		$codeblock = preg_replace_callback('/^\n+/',
-			array(&$this, '_doFencedCodeBlocks_newlines'), $codeblock);
+			array($this, '_doFencedCodeBlocks_newlines'), $codeblock);
 
 		if ($classname != "") {
 			if ($classname{0} == '.')
@@ -2880,7 +2941,7 @@ class MarkdownExtra extends Markdown {
 				)*
 			)		
 			}xm',
-			array(&$this, '_stripFootnotes_callback'),
+			array($this, '_stripFootnotes_callback'),
 			$text);
 		return $text;
 	}
@@ -2908,7 +2969,7 @@ class MarkdownExtra extends Markdown {
 	# Append footnote list to text.
 	#
 		$text = preg_replace_callback('{F\x1Afn:(.*?)\x1A:}', 
-			array(&$this, '_appendFootnotes_callback'), $text);
+			array($this, '_appendFootnotes_callback'), $text);
 	
 		if (!empty($this->footnotes_ordered)) {
 			$text .= "\n\n";
@@ -2940,7 +3001,7 @@ class MarkdownExtra extends Markdown {
 				$footnote .= "\n"; # Need to append newline before parsing.
 				$footnote = $this->runBlockGamut("$footnote\n");				
 				$footnote = preg_replace_callback('{F\x1Afn:(.*?)\x1A:}', 
-					array(&$this, '_appendFootnotes_callback'), $footnote);
+					array($this, '_appendFootnotes_callback'), $footnote);
 				
 				$attr = str_replace("%%", ++$num, $attr);
 				$note_id = $this->encodeAttribute($note_id);
@@ -3023,7 +3084,7 @@ class MarkdownExtra extends Markdown {
 			^[ ]{0,'.$less_than_tab.'}\*\[(.+?)\][ ]?:	# abbr_id = $1
 			(.*)					# text = $2 (no blank lines allowed)	
 			}xm',
-			array(&$this, '_stripAbbreviations_callback'),
+			array($this, '_stripAbbreviations_callback'),
 			$text);
 		return $text;
 	}
@@ -3050,7 +3111,7 @@ class MarkdownExtra extends Markdown {
 				'(?:'.$this->abbr_word_re.')'.
 				'(?![\w\x1A])'.
 				'}', 
-				array(&$this, '_doAbbreviations_callback'), $text);
+				array($this, '_doAbbreviations_callback'), $text);
 		}
 		return $text;
 	}
@@ -3074,12 +3135,16 @@ class MarkdownExtra extends Markdown {
 // https://github.com/egil/php-markdown-extra-extended
 class MarkdownExtraExtended extends MarkdownExtra {
 	# Tags that are always treated as block tags:
-	var $block_tags_re = 'figure|figcaption|p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|address|form|fieldset|iframe|hr|legend';
+	protected $block_tags_re = 'figure|figcaption|p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|address|form|fieldset|iframe|hr|legend';
 		
-	function __construct() {
+	public function __construct() {
 		$this->block_gamut += array(
-			"doFencedFigures" => 7,
+			"doFencedFigures"   => 7
 		);
+
+        $this->document_gamut += array(
+            "doClearBreaks"     =>  100
+        );
 		
 		parent::__construct();
 	}
@@ -3097,28 +3162,33 @@ class MarkdownExtraExtended extends MarkdownExtra {
 		return $parser->transform($text);
 	}
 	
-	function doHardBreaks($text) {
+	public function doHardBreaks($text) {
 		# Do hard breaks:
 		# EXTENDED: changed to allow breaks without two spaces and just one new line
 		# original code /* return preg_replace_callback('/ {2,}\n/', */
 		return preg_replace_callback('/ *\n/', 
-			array(&$this, '_doHardBreaks_callback'), $text);
+			array($this, '_doHardBreaks_callback'), $text);
 	}
 
+    public function doClearBreaks($text) {
+        return preg_replace("/\s*((?:<br \/>\n)+)\s*(<\/?(?:$this->block_tags_re|li|dd|dt)[^\d])/is",
+            "\\2", $text);
+    }
 
-	function doBlockQuotes($text) {
+
+	public function doBlockQuotes($text) {
 		$text = preg_replace_callback('/
 			(?>^[ ]*>[ ]?
 				(?:\((.+?)\))?
 				[ ]*(.+\n(?:.+\n)*)
 			)+	
 			/xm',
-			array(&$this, '_doBlockQuotes_callback'), $text);
+			array($this, '_doBlockQuotes_callback'), $text);
 
 		return $text;
 	}
 	
-	function _doBlockQuotes_callback($matches) {
+	public function _doBlockQuotes_callback($matches) {
 		$cite = $matches[1];
 		$bq = '> ' . $matches[2];
 		# trim one level of quoting - trim whitespace-only lines
@@ -3129,7 +3199,7 @@ class MarkdownExtraExtended extends MarkdownExtra {
 		# These leading spaces cause problem with <pre> content, 
 		# so we need to fix that:
 		$bq = preg_replace_callback('{(\s*<pre>.+?</pre>)}sx', 
-			array(&$this, '_doBlockQuotes_callback2'), $bq);
+			array($this, '_doBlockQuotes_callback2'), $bq);
 		
 		$res = "<blockquote";
 		$res .= empty($cite) ? ">" : " cite=\"$cite\">";
@@ -3137,7 +3207,7 @@ class MarkdownExtraExtended extends MarkdownExtra {
 		return "\n". $this->hashBlock($res)."\n\n";
 	}
 
-	function doFencedCodeBlocks($text) {
+	public function doFencedCodeBlocks($text) {
 		$less_than_tab = $this->tab_width;
 		
 		$text = preg_replace_callback('{
@@ -3160,16 +3230,16 @@ class MarkdownExtraExtended extends MarkdownExtra {
 				# Closing marker.
 				\1 [ ]* \n
 			}xm',
-			array(&$this, '_doFencedCodeBlocks_callback'), $text);
+			array($this, '_doFencedCodeBlocks_callback'), $text);
 
 		return $text;
 	}
 	
-	function _doFencedCodeBlocks_callback($matches) {
-		$codeblock = $matches[4];
+	public function _doFencedCodeBlocks_callback($matches) {
+		$codeblock = $this->unhashHTMLBlocks($matches[4]);
 		$codeblock = htmlspecialchars($codeblock, ENT_NOQUOTES);
 		$codeblock = preg_replace_callback('/^\n+/',
-			array(&$this, '_doFencedCodeBlocks_newlines'), $codeblock);
+			array($this, '_doFencedCodeBlocks_newlines'), $codeblock);
 		//$codeblock = "<pre><code>$codeblock</code></pre>";
 		//$cb = "<pre><code";
 		$cb = empty($matches[3]) ? "<pre><code" : "<pre class=\"linenums:$matches[3]\"><code"; 
@@ -3178,7 +3248,7 @@ class MarkdownExtraExtended extends MarkdownExtra {
 		return "\n\n".$this->hashBlock($cb)."\n\n";
 	}
 
-	function doFencedFigures($text){
+	public function doFencedFigures($text){
 		$text = preg_replace_callback('{
 			(?:\n|\A)
 			# 1: Opening marker
@@ -3198,12 +3268,12 @@ class MarkdownExtraExtended extends MarkdownExtra {
 			
 			# Closing marker.
 			\1 [ ]?(?:\[([^\]]+)\])?[ ]* \n
-		}xm', array(&$this, '_doFencedFigures_callback'), $text);		
+		}xm', array($this, '_doFencedFigures_callback'), $text);		
 		
 		return $text;	
 	}
 	
-	function _doFencedFigures_callback($matches) {
+	public function _doFencedFigures_callback($matches) {
 		# get figcaption
 		$topcaption = empty($matches[2]) ? null : $this->runBlockGamut($matches[2]);
 		$bottomcaption = empty($matches[5]) ? null : $this->runBlockGamut($matches[5]);
@@ -3214,7 +3284,7 @@ class MarkdownExtraExtended extends MarkdownExtra {
 		# These leading spaces cause problem with <pre> content, 
 		# so we need to fix that - reuse blockqoute code to handle this:
 		$figure = preg_replace_callback('{(\s*<pre>.+?</pre>)}sx', 
-			array(&$this, '_doBlockQuotes_callback2'), $figure);
+			array($this, '_doBlockQuotes_callback2'), $figure);
 		
 		$res = "<figure>";
 		if(!empty($topcaption)){

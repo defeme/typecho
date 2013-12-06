@@ -70,6 +70,7 @@ function _engine()
 {
     return !empty($_SERVER['HTTP_APPNAME']) // SAE
         || !!getenv('HTTP_BAE_ENV_APPID')   // BAE
+        || !!getenv('HTTP_BAE_LOGID')   // BAE 3.0
         || (isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'],'Google App Engine') !== false); // GAE
 }
 
@@ -278,6 +279,7 @@ list($prefixVersion, $suffixVersion) = explode('/', $currentVersion);
                                         $installDb->query($installDb->insert('table.options')->rows(array('name' => 'keywords', 'user' => 0, 'value' => 'typecho,php,blog')));
                                         $installDb->query($installDb->insert('table.options')->rows(array('name' => 'rewrite', 'user' => 0, 'value' => 0)));
                                         $installDb->query($installDb->insert('table.options')->rows(array('name' => 'frontPage', 'user' => 0, 'value' => 'recent')));
+                                        $installDb->query($installDb->insert('table.options')->rows(array('name' => 'frontArchive', 'user' => 0, 'value' => 0)));
                                         $installDb->query($installDb->insert('table.options')->rows(array('name' => 'commentsRequireMail', 'user' => 0, 'value' => 1)));
                                         $installDb->query($installDb->insert('table.options')->rows(array('name' => 'commentsWhitelist', 'user' => 0, 'value' => 0)));
                                         $installDb->query($installDb->insert('table.options')->rows(array('name' => 'commentsRequireURL', 'user' => 0, 'value' => 0)));
@@ -303,6 +305,7 @@ list($prefixVersion, $suffixVersion) = explode('/', $currentVersion);
                                         $installDb->query($installDb->insert('table.options')->rows(array('name' => 'commentsPostTimeout', 'user' => 0, 'value' => 24 * 3600 * 30)));
                                         $installDb->query($installDb->insert('table.options')->rows(array('name' => 'commentsUrlNofollow', 'user' => 0, 'value' => 1)));
                                         $installDb->query($installDb->insert('table.options')->rows(array('name' => 'commentsShowUrl', 'user' => 0, 'value' => 1)));
+                                        $installDb->query($installDb->insert('table.options')->rows(array('name' => 'commentsMarkdown', 'user' => 0, 'value' => 0)));
                                         $installDb->query($installDb->insert('table.options')->rows(array('name' => 'commentsPageBreak', 'user' => 0, 'value' => 0)));
                                         $installDb->query($installDb->insert('table.options')->rows(array('name' => 'commentsThreaded', 'user' => 0, 'value' => 1)));
                                         $installDb->query($installDb->insert('table.options')->rows(array('name' => 'commentsPageSize', 'user' => 0, 'value' => 20)));
@@ -358,7 +361,7 @@ list($prefixVersion, $suffixVersion) = explode('/', $currentVersion);
                 <div class="typecho-install-body">
                     <form method="post" action="?start" name="check">
 <?php
-                                        if(('Mysql' == $type && 1050 == $code) ||
+                                        if(('Mysql' == $type && (1050 == $code || '42S01' == $code)) ||
                                         ('SQLite' == $type && ('HY000' == $code || 1 == $code)) ||
                                         ('Pgsql' == $type && '42P07' == $code)) {
                                             if(_r('delete')) {
@@ -511,8 +514,9 @@ Typecho_Db::set(\$db);
                                     
                                     if (!file_exists('./config.inc.php')) {
                                     ?>
-<div class="message notice"><p><?php _e('安装程序无法自动创建 config.inc.php 文件'); ?><br /><?php _e('您可以在网站根目录下手动创建 config.inc.php 文件, 并复制如下代码至其中'); ?></p>
-<p><textarea rows="5" onmouseover="this.select();" readonly><?php echo htmlspecialchars($contents); ?></textarea></p>
+<div class="message notice"><p><?php _e('安装程序无法自动创建 <strong>config.inc.php</strong> 文件'); ?><br />
+<?php _e('您可以在网站根目录下手动创建 <strong>config.inc.php</strong> 文件, 并复制如下代码至其中'); ?></p>
+<p><textarea rows="5" onmouseover="this.select();" class="w-100" readonly><?php echo htmlspecialchars($contents); ?></textarea></p>
 <p><button name="created" value="1" type="submit" class="primary">创建完毕, 继续安装 &raquo;</button></p></div>
                                     <?php
                                     } else { 

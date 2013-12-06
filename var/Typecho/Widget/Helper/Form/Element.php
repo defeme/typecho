@@ -23,14 +23,6 @@ require_once 'Typecho/Widget/Helper/Layout.php';
 abstract class Typecho_Widget_Helper_Form_Element extends Typecho_Widget_Helper_Layout
 {
     /**
-     * 表单标题
-     *
-     * @access protected
-     * @var string
-     */
-    protected $label;
-
-    /**
      * 表单描述
      *
      * @access private
@@ -45,14 +37,6 @@ abstract class Typecho_Widget_Helper_Form_Element extends Typecho_Widget_Helper_
      * @var string
      */
     protected $message;
-
-    /**
-     * 表单元素容器
-     *
-     * @access protected
-     * @var Typecho_Widget_Helper_Layout
-     */
-    protected $container;
 
     /**
      * 多行输入
@@ -71,12 +55,36 @@ abstract class Typecho_Widget_Helper_Form_Element extends Typecho_Widget_Helper_
     protected static $uniqueId = 0;
 
     /**
+     * 表单元素容器
+     *
+     * @access public
+     * @var Typecho_Widget_Helper_Layout
+     */
+    public $container;
+
+    /**
      * 输入栏
      *
      * @access public
      * @var Typecho_Widget_Helper_Layout
      */
     public $input;
+
+    /**
+     * inputs  
+     * 
+     * @var array
+     * @access public
+     */
+    public $inputs = array();
+
+    /**
+     * 表单标题
+     *
+     * @access public
+     * @var Typecho_Widget_Helper_Layout
+     */
+    public $label;
 
     /**
      * 表单验证器

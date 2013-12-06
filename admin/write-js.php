@@ -1,3 +1,4 @@
+<?php if(!defined('__TYPECHO_ROOT_DIR__')) exit; ?>
 <?php Typecho_Plugin::factory('admin/write-js.php')->write(); ?>
 <?php Typecho_Widget::widget('Widget_Metas_Tag_Cloud', 'sort=count&desc=1&limit=200')->to($tags); ?>
 
@@ -76,7 +77,22 @@ $(document).ready(function() {
             noResultsText   :   '<?php _e('此标签不存在, 按回车创建'); ?>',
             prePopulate     :   tagsPre,
 
-            onResult        :   function (result) {
+            onResult        :   function (result, query) {
+                if (!query) {
+                    return result;
+                }
+
+                if (!result) {
+                    result = [];
+                }
+
+                if (!result[0] || result[0]['id'] != query) {
+                    result.unshift({
+                        id      :   query,
+                        tags    :   query
+                    });
+                }
+
                 return result.slice(0, 5);
             }
         });
@@ -130,7 +146,7 @@ $(document).ready(function() {
         formAction = form.attr('action'),
         idInput = $('input[name=cid]'),
         cid = idInput.val(),
-        autoSave = $('#auto-save-message'),
+        autoSave = $('<span id="auto-save-message" class="left"></span>').prependTo('.submit'),
         autoSaveOnce = !!cid,
         lastSaveTime = null;
 
@@ -149,7 +165,7 @@ $(document).ready(function() {
                     cid = o.cid;
                     autoSave.text('<?php _e('内容已经保存'); ?>' + ' (' + o.time + ')').effect('highlight', 1000);
                     locked = false;
-                });
+                }, 'json');
             }
         }, 10000);
     }
@@ -184,13 +200,43 @@ $(document).ready(function() {
         }
     });
 
+    // 控制选项和附件的切换
+    var fileUploadInit = false;
+    $("#edit-secondary .typecho-option-tabs li").click(function() {
+        $("#edit-secondary .typecho-option-tabs li").removeClass('active');
+        $(this).addClass("active");
+        $(".tab-content").hide();
+        
+        var selected_tab = $(this).find("a").attr("href"),
+            selected_el = $(selected_tab).show();
+
+        if (!fileUploadInit) {
+            selected_el.trigger('init');
+            fileUploadInit = true;
+        }
+
+        return false;
+    });
+
     // 高级选项控制
     $('#advance-panel-btn').click(function() {
         $('#advance-panel').toggle();
-        $(this).toggleClass('fold');
         return false;
     });
+
+    // 自动隐藏密码框
+    $('#visibility').change(function () {
+        var val = $(this).val(), password = $('#post-password');
+        console.log(val);
+
+        if ('password' == val) {
+            password.removeClass('hidden');
+        } else {
+            password.addClass('hidden');
+        }
+    });
     
+    // 草稿删除确认
     $('.edit-draft-notice a').click(function () {
         if (confirm('<?php _e('您确认要删除这份草稿吗?'); ?>')) {
             window.location.href = $(this).attr('href');

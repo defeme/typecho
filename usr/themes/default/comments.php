@@ -16,7 +16,7 @@
         </div>
     
     	<h3 id="response"><?php _e('添加新评论'); ?></h3>
-    	<form method="post" action="<?php $this->commentUrl() ?>" id="comment-form">
+    	<form method="post" action="<?php $this->commentUrl() ?>" id="comment-form" role="form">
             <?php if($this->user->hasLogin()): ?>
     		<p><?php _e('登录身份：'); ?><a href="<?php $this->options->profileUrl(); ?>"><?php $this->user->screenName(); ?></a>. <a href="<?php $this->options->logoutUrl(); ?>" title="Logout"><?php _e('退出'); ?> &raquo;</a></p>
             <?php else: ?>
@@ -35,7 +35,7 @@
             <?php endif; ?>
     		<p>
                 <label for="textarea" class="required"><?php _e('内容'); ?></label>
-                <textarea rows="8" cols="50" name="text" class="textarea"><?php $this->remember('text'); ?></textarea>
+                <textarea rows="8" cols="50" name="text" id="textarea" class="textarea"><?php $this->remember('text'); ?></textarea>
             </p>
     		<p>
                 <button type="submit" class="submit"><?php _e('提交评论'); ?></button>
