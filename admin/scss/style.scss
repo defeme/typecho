@@ -10,7 +10,6 @@
 */
 
 @import "compass";
-@import "mixin";
 
 /**
 * Typecho 全局样式
@@ -32,7 +31,7 @@ a {
   color: #467B96;
   text-decoration: none;
   &:hover {
-    color: #6DA1BB;
+    color: #499BC3;
     text-decoration: underline;
   }
 }
@@ -42,6 +41,10 @@ code, pre, .mono {
 }
 
 .p { margin: 1em 0; }
+
+.body-100 {
+  height: 100%;
+}
 
 a.balloon-button {
   display: inline-block;
@@ -60,6 +63,7 @@ a.balloon-button {
   -moz-border-radius: 30px;
   -webkit-border-radius: 30px;
   border-radius: 30px;
+  white-space: nowrap;
 }
 
 a.button:hover, a.balloon-button:hover {
@@ -162,6 +166,11 @@ a.button:hover, a.balloon-button:hover {
   font-size: .92857em;
 }
 
+.typecho-option input.file {
+  width: 100%;
+  margin: .7em 0;
+}
+
 .front-archive {
   padding-left: 1.5em;
 }
@@ -184,6 +193,9 @@ a.button:hover, a.balloon-button:hover {
 /**
 * 安装向导
 */
+.typecho-install {
+  padding-bottom: 2em;
+}
 .typecho-install-patch {
   margin-bottom: 2em;
   padding: 2em 0;
@@ -243,15 +255,68 @@ a.button:hover, a.balloon-button:hover {
   background-color: #E9E9E6;
 }
 
+.welcome-board {
+  color: #999;
+  font-size: 1.15em;
+  em {
+    color: #444;
+    font-size: 2em;
+    font-style: normal;
+    font-family: Georgia, serif;
+  }
+}
+
+#start-link {
+  margin-bottom: 25px;
+  padding: 0 0 35px;
+  border-bottom: 1px solid #ECECEC;
+  li {
+    float: left;
+    margin-right: 1.5em;
+  }
+  .balloon {
+    margin-top: 2px;
+  }
+}
+
+.latest-link {
+  li {
+    white-space: nowrap;
+    overflow: hidden; 
+    text-overflow: ellipsis;
+  }
+  span {
+    display: inline-block;
+    margin-right: 4px;
+    padding-right: 8px;
+    border-right: 1px solid #ECECEC;
+    width: 37px;
+    text-align: right;
+    color: #999;
+  }
+}
+
+.update-check {
+  font-size: 14px;
+}
 
 /**
 * 登录框
 */
-.typecho-login {
-  margin: 150px auto 0;
-  width: 280px;
+.typecho-login-wrap {
+  display: table;
+  margin: 0 auto;
   height: 100%;
+}
+.typecho-login {
+  display: table-cell;
+  padding: 30px 0 100px;
+  width: 280px;
   text-align: center;
+  vertical-align: middle;
+  h1 {
+    margin: 0 0 1em; 
+  }
 }
 
 .typecho-login .more-link {
@@ -415,6 +480,7 @@ a.operate-reply {
 }
 .typecho-list-table {
   width: 100%;
+  border-collapse: collapse;
 }
 
 .typecho-list-table.deactivate {
@@ -495,6 +561,10 @@ a.operate-reply {
   display: block;
 }
 
+.comment-content img {
+  max-width: 100%;
+}
+
 
 /**
 * 评论回复
@@ -550,9 +620,12 @@ a.operate-reply {
   height: 100px;
 }
 
-.typecho-page-main .typecho-option span.multiline {
+.typecho-page-main .typecho-option .multiline {
   display: block;
   margin: .3em 0;
+  &.hidden {
+    display: none;
+  }
 }
 
 
@@ -669,11 +742,6 @@ a.operate-reply {
 
 .typecho-post-area #text {
   resize: none;
-  font-size: .92857em;
-}
-
-#advance-panel-btn {
-  font-size: .92857em;
 }
 
 #advance-panel {
@@ -696,11 +764,19 @@ a.operate-reply {
     }
   }
 
+  p.description {
+    text-align: left;
+  }
+
   .typecho-label {
     margin: 0;
-    cursor: pointer;
-    &:hover {
-      color: #467B96;
+    a {
+      display: block;
+      color: #444;
+      &:hover {
+        color: #467B96;
+        text-decoration: none;
+      }
     }
   }
   table {
@@ -733,6 +809,8 @@ background: #FFF1A8;
   list-style: none;
   border: 1px solid #D9D9D6;
   padding: 6px 12px;
+  max-height: 240px;
+  overflow: auto;
   background-color: #FFF;
   border-radius: 2px;
 }
@@ -746,9 +824,6 @@ background: #FFF1A8;
   padding: 0;
 }
 
-#edit-secondary {
-  #tab-files { display: none; }
-}
 
 /**
 * 标签列表
@@ -817,23 +892,33 @@ background: #FFF1A8;
   list-style: none;
   margin: 0 10px;
   padding: 0;
-  li {
-    padding: 8px 0;
-    border-top: 1px dashed #D9D9D6;
-  }
-  .file {
-    margin-left: 5px;
-  }
+  max-height: 450px;
+  overflow: auto;
+  word-break: break-all;
+  li,
   .insert {
-    display: block;
-    max-width: 100%;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
+  li {
+    padding: 8px 0;
+    border-top: 1px dashed #D9D9D6;
+  }
+  .insert {
+    display: block;
+    max-width: 100%;
+  }
+  .file {
+    margin-left: 5px;
+  }
   .info {
     text-transform: uppercase;
   }
+}
+
+#btn-fullscreen-upload {
+  visibility: hidden;
 }
 
 

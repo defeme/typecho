@@ -1,15 +1,16 @@
-<?php if(!defined('__TYPECHO_ROOT_DIR__')) exit; ?>
-<?php $content = !empty($post) ? $post : $page; if ($options->markdown && (!$content->have() || $content->isMarkdown)): ?>
-<script src="<?php $options->adminUrl('js/pagedown.js?v=' . $suffixVersion); ?>"></script>
-<script src="<?php $options->adminUrl('js/pagedown-extra.js?v=' . $suffixVersion); ?>"></script>
-<script src="<?php $options->adminUrl('js/diff.js?v=' . $suffixVersion); ?>"></script>
+<?php if(!defined('__TYPECHO_ADMIN__')) exit; ?>
+<?php $content = !empty($post) ? $post : $page; if ($options->markdown): ?>
+<script src="<?php $options->adminStaticUrl('js', 'hyperdown.js?v=' . $suffixVersion); ?>"></script>
+<script src="<?php $options->adminStaticUrl('js', 'pagedown.js?v=' . $suffixVersion); ?>"></script>
+<script src="<?php $options->adminStaticUrl('js', 'paste.js?v=' . $suffixVersion); ?>"></script>
 <script>
 $(document).ready(function () {
     var textarea = $('#text'),
-        toolbar = $('<div class="editor" id="wmd-button-bar" />').insertBefore(textarea.parent())
+        isFullScreen = false,
+        toolbar = $('<div class="editor" id="wmd-button-bar" />').insertBefore(textarea.parent()),
         preview = $('<div id="wmd-preview" class="wmd-hidetab" />').insertAfter('.editor');
 
-    var options = {};
+    var options = {}, isMarkdown = <?php echo intval($content->isMarkdown || !$content->have()); ?>;
 
     options.strings = {
         bold: '<?php _e('加粗'); ?> <strong> Ctrl+B',
@@ -48,7 +49,7 @@ $(document).ready(function () {
         exitFullscreen: '<?php _e('退出全屏'); ?> - Ctrl+E',
         fullscreenUnsupport: '<?php _e('此浏览器不支持全屏操作'); ?>',
 
-        imagedialog: '<p><b><?php _e('插入图片'); ?></b></p><p><?php _e('请在下方的输入框内输入要插入的远程图片地址'); ?></p><p><?php _e('您也可以使用编辑器下方的文件上传功能插入本地图片'); ?></p>',
+        imagedialog: '<p><b><?php _e('插入图片'); ?></b></p><p><?php _e('请在下方的输入框内输入要插入的远程图片地址'); ?></p><p><?php _e('您也可以使用附件功能插入上传的本地图片'); ?></p>',
         linkdialog: '<p><b><?php _e('插入链接'); ?></b></p><p><?php _e('请在下方的输入框内输入要插入的链接地址'); ?></p>',
 
         ok: '<?php _e('确定'); ?>',
@@ -57,31 +58,18 @@ $(document).ready(function () {
         help: '<?php _e('Markdown语法帮助'); ?>'
     };
 
-    var converter = new Markdown.Converter(),
-        editor = new Markdown.Editor(converter, '', options),
-        diffMatch = new diff_match_patch(), last = '', preview = $('#wmd-preview'),
-        mark = '@mark' + Math.ceil(Math.random() * 100000000) + '@',
-        span = '<span class="diff" />';
-    
-    // 设置markdown
-    Markdown.Extra.init(converter, {
-        extensions  :   'all'
-    });
+    var converter = new HyperDown(),
+        editor = new Markdown.Editor(converter, '', options);
 
     // 自动跟随
-    converter.hooks.chain('postConversion', function (html) {
-        // clear special html tags
-        html = html.replace(/<\/?(\!doctype|html|head|body|link|title|input|select|button|textarea|style|noscript)[^>]*>/ig, function (all) {
-            return all.replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/'/g, '&#039;')
-                .replace(/"/g, '&quot;');
-        });
+    converter.enableHtml(true);
+    converter.enableLine(true);
+    reloadScroll = scrollableEditor(textarea, preview);
 
-        // clear hard breaks
-        html = html.replace(/\s*((?:<br>\n)+)\s*(<\/?(?:p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|address|form|fieldset|iframe|hr|legend|article|section|nav|aside|hgroup|header|footer|figcaption|li|dd|dt)[^\w])/gm, '$2');
-
+    // 修正白名单
+    converter.hook('makeHtml', function (html) {
+        html = html.replace('<p><!--more--></p>', '<!--more-->');
+        
         if (html.indexOf('<!--more-->') > 0) {
             var parts = html.split(/\s*<\!\-\-more\-\->\s*/),
                 summary = parts.shift(),
@@ -91,82 +79,50 @@ $(document).ready(function () {
                 + '<div class="details">' + details + '</div>';
         }
 
-
-        var diffs = diffMatch.diff_main(last, html);
-        last = html;
-
-        if (diffs.length > 0) {
-            var stack = [], markStr = mark;
-            
-            for (var i = 0; i < diffs.length; i ++) {
-                var diff = diffs[i], op = diff[0], str = diff[1]
-                    sp = str.lastIndexOf('<'), ep = str.lastIndexOf('>');
-
-                if (op != 0) {
-                    if (sp >=0 && sp > ep) {
-                        if (op > 0) {
-                            stack.push(str.substring(0, sp) + markStr + str.substring(sp));
-                        } else {
-                            var lastStr = stack[stack.length - 1], lastSp = lastStr.lastIndexOf('<');
-                            stack[stack.length - 1] = lastStr.substring(0, lastSp) + markStr + lastStr.substring(lastSp);
-                        }
-                    } else {
-                        if (op > 0) {
-                            stack.push(str + markStr);
-                        } else {
-                            stack.push(markStr);
-                        }
-                    }
-                    
-                    markStr = '';
-                } else {
-                    stack.push(str);
-                }
+        // 替换block
+        html = html.replace(/<(iframe|embed)\s+([^>]*)>/ig, function (all, tag, src) {
+            if (src[src.length - 1] == '/') {
+                src = src.substring(0, src.length - 1);
             }
 
-            html = stack.join('');
-
-            if (!markStr) {
-                var pos = html.indexOf(mark), prev = html.substring(0, pos),
-                    next = html.substr(pos + mark.length),
-                    sp = prev.lastIndexOf('<'), ep = prev.lastIndexOf('>');
-
-                if (sp >= 0 && sp > ep) {
-                    html = prev.substring(0, sp) + span + prev.substring(sp) + next;
-                } else {
-                    html = prev + span + next;
-                }
-            }
-        }
+            return '<div style="border: 1px solid #ccc; height: 40px; overflow: hidden; line-height: 40px; text-align: center; font-size: 12px; color: #777"><strong>'
+                + tag + '</strong> : ' + $.trim(src) + '</div>';
+        });
 
         return html;
     });
 
     editor.hooks.chain('onPreviewRefresh', function () {
-        var diff = $('.diff', preview), scrolled = false;
+        var images = $('img', preview), count = images.length;
 
-        $('img', preview).load(function () {
-            if (scrolled) {
-                preview.scrollTo(diff, {
-                    offset  :   - 50
-                });
-            }
-        });
+        if (count == 0) {
+            reloadScroll(true);
+        } else {
+            images.bind('load error', function () {
+                count --;
 
-        if (diff.length > 0) {
-            var p = diff.position(), lh = diff.parent().css('line-height');
-            lh = !!lh ? parseInt(lh) : 0;
-
-            if (p.top < 0 || p.top > preview.height() - lh) {
-                preview.scrollTo(diff, {
-                    offset  :   - 50
-                });
-                scrolled = true;
-            }
+                if (count == 0) {
+                    reloadScroll(true);
+                }
+            });
         }
     });
 
-    var input = $('#text'), th = textarea.height(), ph = preview.height();
+    <?php Typecho_Plugin::factory('admin/editor-js.php')->markdownEditor($content); ?>
+
+    var th = textarea.height(), ph = preview.height(),
+        uploadBtn = $('<button type="button" id="btn-fullscreen-upload" class="btn btn-link">'
+            + '<i class="i-upload"><?php _e('附件'); ?></i></button>')
+            .prependTo('.submit .right')
+            .click(function() {
+                $('a', $('.typecho-option-tabs li').not('.active')).trigger('click');
+                return false;
+            });
+
+    $('.typecho-option-tabs li').click(function () {
+        uploadBtn.find('i').toggleClass('i-upload-active',
+            $('#tab-files-btn', this).length > 0);
+    });
 
     editor.hooks.chain('enterFakeFullScreen', function () {
         th = textarea.height();
@@ -176,6 +132,7 @@ $(document).ready(function () {
         
         textarea.css('height', h);
         preview.css('height', h);
+        isFullScreen = true;
     });
 
     editor.hooks.chain('enterFullScreen', function () {
@@ -184,59 +141,100 @@ $(document).ready(function () {
         var h = window.screen.height - toolbar.outerHeight();
         textarea.css('height', h);
         preview.css('height', h);
+        isFullScreen = true;
     });
 
     editor.hooks.chain('exitFullScreen', function () {
         $(document.body).removeClass('fullscreen');
         textarea.height(th);
         preview.height(ph);
+        isFullScreen = false;
     });
 
-    editor.run();
+    editor.hooks.chain('commandExecuted', function () {
+        textarea.trigger('input');
+    });
 
-    var imageButton = $('#wmd-image-button'),
-        linkButton = $('#wmd-link-button');
+    function initMarkdown() {
+        editor.run();
 
-    Typecho.insertFileToEditor = function (file, url, isImage) {
-        var button = isImage ? imageButton : linkButton;
+        var imageButton = $('#wmd-image-button'),
+            linkButton = $('#wmd-link-button');
 
-        options.strings[isImage ? 'imagename' : 'linkname'] = file;
-        button.trigger('click');
+        Typecho.insertFileToEditor = function (file, url, isImage) {
+            var button = isImage ? imageButton : linkButton;
 
-        var checkDialog = setInterval(function () {
-            if ($('.wmd-prompt-dialog').length > 0) {
-                $('.wmd-prompt-dialog input').val(url).select();
-                clearInterval(checkDialog);
-                checkDialog = null;
-            }
-        }, 10);
-    };
+            options.strings[isImage ? 'imagename' : 'linkname'] = file;
+            button.trigger('click');
 
+            var checkDialog = setInterval(function () {
+                if ($('.wmd-prompt-dialog').length > 0) {
+                    $('.wmd-prompt-dialog input').val(url).select();
+                    clearInterval(checkDialog);
+                    checkDialog = null;
+                }
+            }, 10);
+        };
 
-    // 编辑预览切换
-    var edittab = $('.editor').prepend('<div class="wmd-edittab"><a href="#wmd-editarea" class="active">撰写</a><a href="#wmd-preview">预览</a></div>'),
-        editarea = $(textarea.parent()).attr("id", "wmd-editarea");
+        Typecho.uploadComplete = function (file) {
+            Typecho.insertFileToEditor(file.title, file.url, file.isImage);
+        };
 
-    $(".wmd-edittab a").click(function() {
-        $(".wmd-edittab a").removeClass('active');
-        $(this).addClass("active");
-        $("#wmd-editarea, #wmd-preview").addClass("wmd-hidetab");
+        // 编辑预览切换
+        var edittab = $('.editor').prepend('<div class="wmd-edittab"><a href="#wmd-editarea" class="active"><?php _e('撰写'); ?></a><a href="#wmd-preview"><?php _e('预览'); ?></a></div>'),
+            editarea = $(textarea.parent()).attr("id", "wmd-editarea");
+
+        $(".wmd-edittab a").click(function() {
+            $(".wmd-edittab a").removeClass('active');
+            $(this).addClass("active");
+            $("#wmd-editarea, #wmd-preview").addClass("wmd-hidetab");
         
-        var selected_tab = $(this).attr("href"),
-            selected_el = $(selected_tab).removeClass("wmd-hidetab");
+            var selected_tab = $(this).attr("href"),
+                selected_el = $(selected_tab).removeClass("wmd-hidetab");
 
-        // 预览时隐藏编辑器按钮
-        if (selected_tab == "#wmd-preview") {
-            $("#wmd-button-row").addClass("wmd-visualhide");
-        } else {
-            $("#wmd-button-row").removeClass("wmd-visualhide");
-        }
+            // 预览时隐藏编辑器按钮
+            if (selected_tab == "#wmd-preview") {
+                $("#wmd-button-row").addClass("wmd-visualhide");
+            } else {
+                $("#wmd-button-row").removeClass("wmd-visualhide");
+            }
 
-        // 预览和编辑窗口高度一致
-        $("#wmd-preview").outerHeight($("#wmd-editarea").innerHeight());
+            // 预览和编辑窗口高度一致
+            $("#wmd-preview").outerHeight($("#wmd-editarea").innerHeight());
 
-        return false;
-    });
+            return false;
+        });
+
+        // 剪贴板复制图片
+        textarea.pastableTextarea().on('pasteImage', function (e, data) {
+            var name = data.name ? data.name.replace(/[\(\)\[\]\*#!]/g, '') : (new Date()).toISOString().replace(/\..+$/, '');
+            if (!name.match(/\.[a-z0-9]{2,}$/i)) {
+                var ext = data.blob.type.split('/').pop();
+                name += '.' + ext;
+            }
+
+            Typecho.uploadFile(new File([data.blob], name), name);
+        });
+    }
+
+    if (isMarkdown) {
+        initMarkdown();
+    } else {
+        var notice = $('<div class="message notice"><?php _e('这篇文章不是由Markdown语法创建的, 继续使用Markdown编辑它吗?'); ?> '
+            + '<button class="btn btn-xs primary yes"><?php _e('是'); ?></button> ' 
+            + '<button class="btn btn-xs no"><?php _e('否'); ?></button></div>')
+            .hide().insertBefore(textarea).slideDown();
+
+        $('.yes', notice).click(function () {
+            notice.remove();
+            $('<input type="hidden" name="markdown" value="1" />').appendTo('.submit');
+            initMarkdown();
+        });
+
+        $('.no', notice).click(function () {
+            notice.remove();
+        });
+    }
 });
 </script>
 <?php endif; ?>

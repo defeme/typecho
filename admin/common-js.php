@@ -1,7 +1,7 @@
-<?php if(!defined('__TYPECHO_ROOT_DIR__')) exit; ?>
-<script src="<?php $options->adminUrl('js/jquery.js?v=' . $suffixVersion); ?>"></script> 
-<script src="<?php $options->adminUrl('js/jquery-ui.js?v=' . $suffixVersion); ?>"></script> 
-<script src="<?php $options->adminUrl('js/typecho.js?v=' . $suffixVersion); ?>"></script>
+<?php if(!defined('__TYPECHO_ADMIN__')) exit; ?>
+<script src="<?php $options->adminStaticUrl('js', 'jquery.js?v=' . $suffixVersion); ?>"></script>
+<script src="<?php $options->adminStaticUrl('js', 'jquery-ui.js?v=' . $suffixVersion); ?>"></script>
+<script src="<?php $options->adminStaticUrl('js', 'typecho.js?v=' . $suffixVersion); ?>"></script>
 <script>
     (function () {
         $(document).ready(function() {
@@ -13,8 +13,7 @@
                         noticeType  :   $.cookie(prefix + '__typecho_notice_type'),
                         highlight   :   $.cookie(prefix + '__typecho_notice_highlight')
                     },
-                    path = '<?php $parts = parse_url($options->siteUrl);
-                        echo empty($parts['path']) ? '/' : $parts['path']; ?>';
+                    path = '<?php echo Typecho_Cookie::getPath(); ?>';
 
                 if (!!cookies.notice && 'success|notice|error'.indexOf(cookies.noticeType) >= 0) {
                     var head = $('.typecho-head-nav'),
@@ -59,7 +58,7 @@
                         }
 
                         t.effect('highlight', {color : color})
-                            .delay(5000).slideUp(function () {
+                            .delay(5000).fadeOut(function () {
                             $(this).remove();
                         });
                     });
@@ -75,19 +74,37 @@
                 }
             })();
 
+
+            // 导航菜单 tab 聚焦时展开下拉菜单
+            (function () {
+                $('#typecho-nav-list').find('.parent a').focus(function() {
+                    $('#typecho-nav-list').find('.child').hide();
+                    $(this).parents('.root').find('.child').show();
+                });
+                $('.operate').find('a').focus(function() {
+                    $('#typecho-nav-list').find('.child').hide();
+                });
+            })();
+
+
             if ($('.typecho-login').length == 0) {
                 $('a').each(function () {
                     var t = $(this), href = t.attr('href');
 
-                    if ((href.length > 1 && href[0] == '#')
+                    if ((href && href[0] == '#')
                         || /^<?php echo preg_quote($options->adminUrl, '/'); ?>.*$/.exec(href) 
                             || /^<?php echo substr(preg_quote(Typecho_Common::url('s', $options->index), '/'), 0, -1); ?>action\/[_a-zA-Z0-9\/]+.*$/.exec(href)) {
                         return;
                     }
 
-                    t.attr('target', '_blank');
+                    t.attr('target', '_blank')
+                        .attr('rel', 'noopener noreferrer');
                 });
             }
+
+            $('.main form').submit(function () {
+                $('button[type=submit]', this).attr('disabled', 'disabled');
+            });
         });
     })();
 </script>

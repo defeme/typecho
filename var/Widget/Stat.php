@@ -1,4 +1,5 @@
 <?php
+if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 /**
  * 全局统计
  *
@@ -79,7 +80,7 @@ class Widget_Stat extends Typecho_Widget
     {
         return $this->db->fetchObject($this->db->select(array('COUNT(cid)' => 'num'))
                     ->from('table.contents')
-                    ->where('table.contents.type = ?', 'post')
+                    ->where('table.contents.type = ? OR table.contents.type = ?', 'post', 'post_draft')
                     ->where('table.contents.status = ?', 'waiting'))->num;
     }
 
@@ -93,8 +94,7 @@ class Widget_Stat extends Typecho_Widget
     {
         return $this->db->fetchObject($this->db->select(array('COUNT(cid)' => 'num'))
                     ->from('table.contents')
-                    ->where('table.contents.type = ?', 'post')
-                    ->where('table.contents.status = ?', 'draft'))->num;
+                    ->where('table.contents.type = ?', 'post_draft'))->num;
     }
 
     /**
@@ -122,7 +122,7 @@ class Widget_Stat extends Typecho_Widget
     {
         return $this->db->fetchObject($this->db->select(array('COUNT(cid)' => 'num'))
                     ->from('table.contents')
-                    ->where('table.contents.type = ?', 'post')
+                    ->where('table.contents.type = ? OR table.contents.type = ?', 'post', 'post_draft')
                     ->where('table.contents.status = ?', 'waiting')
                     ->where('table.contents.authorId = ?', $this->user->uid))->num;
     }
@@ -137,8 +137,7 @@ class Widget_Stat extends Typecho_Widget
     {
         return $this->db->fetchObject($this->db->select(array('COUNT(cid)' => 'num'))
                     ->from('table.contents')
-                    ->where('table.contents.type = ?', 'post')
-                    ->where('table.contents.status = ?', 'draft')
+                    ->where('table.contents.type = ?', 'post_draft')
                     ->where('table.contents.authorId = ?', $this->user->uid))->num;
     }
 
@@ -167,7 +166,7 @@ class Widget_Stat extends Typecho_Widget
     {
         return $this->db->fetchObject($this->db->select(array('COUNT(cid)' => 'num'))
                     ->from('table.contents')
-                    ->where('table.contents.type = ?', 'post')
+                    ->where('table.contents.type = ? OR table.contents.type = ?', 'post', 'post_draft')
                     ->where('table.contents.status = ?', 'waiting')
                     ->where('table.contents.authorId = ?', $this->request->filter('int')->uid))->num;
     }
@@ -182,8 +181,7 @@ class Widget_Stat extends Typecho_Widget
     {
         return $this->db->fetchObject($this->db->select(array('COUNT(cid)' => 'num'))
                     ->from('table.contents')
-                    ->where('table.contents.type = ?', 'post')
-                    ->where('table.contents.status = ?', 'draft')
+                    ->where('table.contents.type = ?', 'post_draft')
                     ->where('table.contents.authorId = ?', $this->request->filter('int')->uid))->num;
     }
 
@@ -211,8 +209,7 @@ class Widget_Stat extends Typecho_Widget
     {
         return $this->db->fetchObject($this->db->select(array('COUNT(cid)' => 'num'))
                     ->from('table.contents')
-                    ->where('table.contents.type = ?', 'page')
-                    ->where('table.contents.status = ?', 'draft'))->num;
+                    ->where('table.contents.type = ?', 'page_draft'))->num;
     }
 
     /**
@@ -362,5 +359,18 @@ class Widget_Stat extends Typecho_Widget
         return $this->db->fetchObject($this->db->select(array('COUNT(mid)' => 'num'))
                     ->from('table.metas')
                     ->where('table.metas.type = ?', 'category'))->num;
+    }
+    
+     /**
+     * 获取标签数目
+     *
+     * @access protected
+     * @return integer
+     */
+    protected function ___tagsNum()
+    {
+        return $this->db->fetchObject($this->db->select(array('COUNT(mid)' => 'num'))
+                    ->from('table.metas')
+                    ->where('table.metas.type = ?', 'tag'))->num;
     }
 }

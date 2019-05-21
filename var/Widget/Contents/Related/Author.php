@@ -1,4 +1,5 @@
 <?php
+if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 /**
  * 相关内容
  *
@@ -36,7 +37,7 @@ class Widget_Contents_Related_Author extends Widget_Abstract_Contents
             ->where('table.contents.cid <> ?', $this->parameter->cid)
             ->where('table.contents.status = ?', 'publish')
             ->where('table.contents.password IS NULL')
-            ->where('table.contents.created < ?', $this->options->gmtTime)
+            ->where('table.contents.created < ?', $this->options->time)
             ->where('table.contents.type = ?', $this->parameter->type)
             ->order('table.contents.created', Typecho_Db::SORT_DESC)
             ->limit($this->parameter->limit), array($this, 'push'));

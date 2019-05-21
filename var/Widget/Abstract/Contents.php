@@ -1,4 +1,5 @@
 <?php
+if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 /**
  * Typecho Blog Platform
  *
@@ -44,7 +45,7 @@ class Widget_Abstract_Contents extends Widget_Abstract
      * 获取词义化日期
      *
      * @access protected
-     * @return void
+     * @return string
      */
     protected function ___dateWord()
     {
@@ -55,7 +56,7 @@ class Widget_Abstract_Contents extends Widget_Abstract
      * 获取父id
      *
      * @access protected
-     * @return void
+     * @return string
      */
     protected function ___parentId()
     {
@@ -79,7 +80,7 @@ class Widget_Abstract_Contents extends Widget_Abstract
      * ___fields
      * 
      * @access protected
-     * @return void
+     * @return Typecho_Config
      */
     protected function ___fields()
     {
@@ -108,8 +109,8 @@ class Widget_Abstract_Contents extends Widget_Abstract
 
         $content = $this->pluginHandle(__CLASS__)->trigger($plugged)->excerpt($this->text, $this);
         if (!$plugged) {
-            $content = $this->isMarkdown ? MarkdownExtraExtended::defaultTransform($content)
-                : Typecho_Common::cutParagraph($content);
+            $content = $this->isMarkdown ? $this->markdown($content)
+                : $this->autoP($content);
         }
 
         $contents = explode('<!--more-->', $content);
@@ -133,18 +134,34 @@ class Widget_Abstract_Contents extends Widget_Abstract
         $content = $this->pluginHandle(__CLASS__)->trigger($plugged)->content($this->text, $this);
 
         if (!$plugged) {
-            $content = $this->isMarkdown ? MarkdownExtraExtended::defaultTransform($content)
-                : Typecho_Common::cutParagraph($content);
+            $content = $this->isMarkdown ? $this->markdown($content)
+                : $this->autoP($content);
         }
 
         return $this->pluginHandle(__CLASS__)->contentEx($content, $this);
     }
 
     /**
+     * 输出文章的第一行作为摘要
+     *
+     * @return string
+     */
+    protected function ___summary()
+    {
+        $content = $this->content;
+        $parts = preg_split("/(<\/\s*(?:p|blockquote|q|pre|table)\s*>)/i", $content, 2, PREG_SPLIT_DELIM_CAPTURE);
+        if (!empty($parts)) {
+            $content = $parts[0] . $parts[1];
+        }
+
+        return $content;
+    }
+
+    /**
      * 锚点id
      *
      * @access protected
-     * @return void
+     * @return string
      */
     protected function ___theId()
     {
@@ -155,7 +172,7 @@ class Widget_Abstract_Contents extends Widget_Abstract
      * 回复框id
      * 
      * @access protected
-     * @return void
+     * @return string
      */
     protected function ___respondId()
     {
@@ -166,7 +183,7 @@ class Widget_Abstract_Contents extends Widget_Abstract
      * 评论地址
      * 
      * @access protected
-     * @return void
+     * @return string
      */
     protected function ___commentUrl()
     {
@@ -180,7 +197,7 @@ class Widget_Abstract_Contents extends Widget_Abstract
      * trackback地址
      * 
      * @access protected
-     * @return void
+     * @return string
      */
     protected function ___trackbackUrl()
     {
@@ -192,7 +209,7 @@ class Widget_Abstract_Contents extends Widget_Abstract
      * 回复地址
      * 
      * @access protected
-     * @return void
+     * @return string
      */
     protected function ___responseUrl()
     {
@@ -215,7 +232,8 @@ class Widget_Abstract_Contents extends Widget_Abstract
     {
         $select = $this->db->select(array('COUNT(table.contents.cid)' => 'num'))->from('table.contents')
         ->where("table.contents.{$column} > {$offset}")
-        ->where("table.contents.type = ?", $type);
+        ->where("table.contents.type = ? OR (table.contents.type = ? AND table.contents.parent = ?)",
+            $type, $type . '_draft', 0);
 
         if (!empty($status)) {
             $select->where("table.contents.status = ?", $status);
@@ -254,16 +272,16 @@ class Widget_Abstract_Contents extends Widget_Abstract
     {
         /** 构建插入结构 */
         $insertStruct = array(
-            'title'         =>  empty($content['title']) ? NULL : htmlspecialchars($content['title']),
-            'created'       =>  empty($content['created']) ? $this->options->gmtTime : $content['created'],
-            'modified'      =>  $this->options->gmtTime,
-            'text'          =>  empty($content['text']) ? NULL : $content['text'],
+            'title'         =>  !isset($content['title']) || strlen($content['title']) === 0 ? NULL : htmlspecialchars($content['title']),
+            'created'       =>  !isset($content['created']) ? $this->options->time : $content['created'],
+            'modified'      =>  $this->options->time,
+            'text'          =>  !isset($content['text']) || strlen($content['text']) === 0 ? NULL : $content['text'],
             'order'         =>  empty($content['order']) ? 0 : intval($content['order']),
             'authorId'      =>  isset($content['authorId']) ? $content['authorId'] : $this->user->uid,
             'template'      =>  empty($content['template']) ? NULL : $content['template'],
             'type'          =>  empty($content['type']) ? 'post' : $content['type'],
             'status'        =>  empty($content['status']) ? 'publish' : $content['status'],
-            'password'      =>  empty($content['password']) ? NULL : $content['password'],
+            'password'      =>  !isset($content['password']) || strlen($content['password']) === 0 ? NULL : $content['password'],
             'commentsNum'   =>  empty($content['commentsNum']) ? 0 : $content['commentsNum'],
             'allowComment'  =>  !empty($content['allowComment']) && 1 == $content['allowComment'] ? 1 : 0,
             'allowPing'     =>  !empty($content['allowPing']) && 1 == $content['allowPing'] ? 1 : 0,
@@ -280,7 +298,7 @@ class Widget_Abstract_Contents extends Widget_Abstract
 
         /** 更新缩略名 */
         if ($insertId > 0) {
-            $this->applySlug(empty($content['slug']) ? NULL : $content['slug'], $insertId);
+            $this->applySlug(!isset($content['slug']) || strlen($content['slug']) === 0 ? NULL : $content['slug'], $insertId);
         }
 
         return $insertId;
@@ -303,9 +321,9 @@ class Widget_Abstract_Contents extends Widget_Abstract
 
         /** 构建更新结构 */
         $preUpdateStruct = array(
-            'title'         =>  empty($content['title']) ? NULL : htmlspecialchars($content['title']),
+            'title'         =>  !isset($content['title']) || strlen($content['title']) === 0 ? NULL : htmlspecialchars($content['title']),
             'order'         =>  empty($content['order']) ? 0 : intval($content['order']),
-            'text'          =>  empty($content['text']) ? NULL : $content['text'],
+            'text'          =>  !isset($content['text']) || strlen($content['text']) === 0 ? NULL : $content['text'],
             'template'      =>  empty($content['template']) ? NULL : $content['template'],
             'type'          =>  empty($content['type']) ? 'post' : $content['type'],
             'status'        =>  empty($content['status']) ? 'publish' : $content['status'],
@@ -324,11 +342,11 @@ class Widget_Abstract_Contents extends Widget_Abstract
         }
 
         /** 更新创建时间 */
-        if (!empty($content['created'])) {
+        if (isset($content['created'])) {
             $updateStruct['created'] = $content['created'];
         }
 
-        $updateStruct['modified'] = $this->options->gmtTime;
+        $updateStruct['modified'] = $this->options->time;
 
         /** 首先插入部分数据 */
         $updateCondition = clone $condition;
@@ -336,7 +354,7 @@ class Widget_Abstract_Contents extends Widget_Abstract
 
         /** 更新缩略名 */
         if ($updateRows > 0 && isset($content['slug'])) {
-            $this->applySlug(empty($content['slug']) ? NULL : $content['slug'], $condition);
+            $this->applySlug(!isset($content['slug']) || strlen($content['slug']) === 0 ? NULL : $content['slug'], $updateCondition);
         }
 
         return $updateRows;
@@ -405,7 +423,7 @@ class Widget_Abstract_Contents extends Widget_Abstract
      */
     public function deleteFields($cid)
     {
-        return $this->db->query($this->db->delete('table.contents')
+        return $this->db->query($this->db->delete('table.fields')
             ->where('cid = ?', $cid));
     }
 
@@ -576,7 +594,10 @@ class Widget_Abstract_Contents extends Widget_Abstract
      */
     public function size(Typecho_Db_Query $condition)
     {
-        return $this->db->fetchObject($condition->select(array('COUNT(table.contents.cid)' => 'num'))->from('table.contents'))->num;
+        return $this->db->fetchObject($condition
+            ->select(array('COUNT(DISTINCT table.contents.cid)' => 'num'))
+            ->from('table.contents')
+            ->cleanAttribute('group'))->num;
     }
     
     /**
@@ -587,7 +608,7 @@ class Widget_Abstract_Contents extends Widget_Abstract
      */
     public function getTemplates()
     {
-        $files = glob(__TYPECHO_ROOT_DIR__ . '/' . __TYPECHO_THEME_DIR__ . '/' . $this->options->theme . '/*.php');
+        $files = glob($this->options->themeFile($this->options->theme, '*.php'));
         $result = array();
 
         foreach ($files as $file) {
@@ -608,19 +629,27 @@ class Widget_Abstract_Contents extends Widget_Abstract
      * @access public
      * @param array $value 需要过滤的行数据
      * @return array
+     * @throws Typecho_Widget_Exception
      */
     public function filter(array $value)
     {
         /** 取出所有分类 */
         $value['categories'] = $this->db->fetchAll($this->db
-        ->select()->from('table.metas')
-        ->join('table.relationships', 'table.relationships.mid = table.metas.mid')
-        ->where('table.relationships.cid = ?', $value['cid'])
-        ->where('table.metas.type = ?', 'category')
-        ->order('table.metas.order', Typecho_Db::SORT_ASC), array($this->widget('Widget_Abstract_Metas'), 'filter'));
+            ->select()->from('table.metas')
+            ->join('table.relationships', 'table.relationships.mid = table.metas.mid')
+            ->where('table.relationships.cid = ?', $value['cid'])
+            ->where('table.metas.type = ?', 'category')
+            ->order('table.metas.order', Typecho_Db::SORT_ASC), array($this->widget('Widget_Metas_Category_List'), 'filter'));
+        $value['category'] = NULL;
+        $value['directory'] = array();
 
         /** 取出第一个分类作为slug条件 */
-        $value['category'] = current(Typecho_Common::arrayFlatten($value['categories'], 'slug'));
+        if (!empty($value['categories'])) {
+            $value['category'] = $value['categories'][0]['slug'];
+
+            $value['directory'] = $this->widget('Widget_Metas_Category_List')->getAllParentsSlug($value['categories'][0]['mid']);
+            $value['directory'][] = $value['category'];
+        }
 
         $value['date'] = new Typecho_Date($value['created']);
 
@@ -638,8 +667,10 @@ class Widget_Abstract_Contents extends Widget_Abstract
 
         $tmpSlug = $value['slug'];
         $tmpCategory = $value['category'];
+        $tmpDirectory = $value['directory'];
         $value['slug'] = urlencode($value['slug']);
         $value['category'] = urlencode($value['category']);
+        $value['directory'] = implode('/', array_map('urlencode', $value['directory']));
 
         /** 生成静态路径 */
         $value['pathinfo'] = $routeExists ? Typecho_Router::url($type, $value) : '#';
@@ -666,9 +697,11 @@ class Widget_Abstract_Contents extends Widget_Abstract
         }
 
         /** 处理Markdown **/
-        $value['isMarkdown'] = (0 === strpos($value['text'], '<!--markdown-->'));
-        if ($value['isMarkdown']) {
-            $value['text'] = substr($value['text'], 15);
+        if (isset($value['text'])) {
+            $value['isMarkdown'] = (0 === strpos($value['text'], '<!--markdown-->'));
+            if ($value['isMarkdown']) {
+                $value['text'] = substr($value['text'], 15);
+            }
         }
 
         /** 生成聚合链接 */
@@ -683,10 +716,11 @@ class Widget_Abstract_Contents extends Widget_Abstract
 
         $value['slug'] = $tmpSlug;
         $value['category'] = $tmpCategory;
+        $value['directory'] = $tmpDirectory;
         
         /** 处理密码保护流程 */
-        if (!empty($value['password']) &&
-        $value['password'] != $this->request->protectPassword &&
+        if (strlen($value['password']) > 0 &&
+        $value['password'] !== Typecho_Cookie::get('protectPassword_' . $value['cid']) &&
         $value['authorId'] != $this->user->uid && 
         !$this->user->pass('editor', true)) {
             $value['hidden'] = true;
@@ -701,9 +735,11 @@ class Widget_Abstract_Contents extends Widget_Abstract
 
         /** 如果访问权限被禁止 */
         if ($value['hidden']) {
-            $value['text'] = '<form class="protected" action="' . $value['permalink'] . '" method="post">' .
+            $value['text'] = '<form class="protected" action="' . $this->security->getTokenUrl($value['permalink'])
+                . '" method="post">' .
             '<p class="word">' . _t('请输入密码访问') . '</p>' .
             '<p><input type="password" class="text" name="protectPassword" />
+            <input type="hidden" name="protectCID" value="' . $value['cid'] . '" />
             <input type="submit" class="submit" value="' . _t('提交') . '" /></p>' .
             '</form>';
 
@@ -733,7 +769,6 @@ class Widget_Abstract_Contents extends Widget_Abstract
      *
      * @access public
      * @param string $format 日期格式
-     * @return void
      */
     public function date($format = NULL)
     {
@@ -744,8 +779,7 @@ class Widget_Abstract_Contents extends Widget_Abstract
      * 输出文章内容
      *
      * @access public
-     * @param string $more 文章截取后缀
-     * @return void
+     * @param mixed $more 文章截取后缀
      */
     public function content($more = false)
     {
@@ -759,7 +793,6 @@ class Widget_Abstract_Contents extends Widget_Abstract
      * @access public
      * @param integer $length 摘要截取长度
      * @param string $trim 摘要后缀
-     * @return void
      */
     public function excerpt($length = 100, $trim = '...')
     {
@@ -772,13 +805,14 @@ class Widget_Abstract_Contents extends Widget_Abstract
      * @access public
      * @param integer $length 标题截取长度
      * @param string $trim 截取后缀
-     * @return void
      */
     public function title($length = 0, $trim = '...')
     {
         $title = $this->pluginHandle()->trigger($plugged)->title($this->title, $this);
         if (!$plugged) {
             echo $length > 0 ? Typecho_Common::subStr($this->title, 0, $length, $trim) : $this->title;
+        } else {
+            echo $title;
         }
     }
 
@@ -786,8 +820,6 @@ class Widget_Abstract_Contents extends Widget_Abstract
      * 输出文章评论数
      *
      * @access public
-     * @param string $string 评论数格式化数据
-     * @return void
      */
     public function commentsNum()
     {
@@ -805,8 +837,6 @@ class Widget_Abstract_Contents extends Widget_Abstract
      * 获取文章权限
      *
      * @access public
-     * @param string $permission 权限
-     * @return unknown
      */
     public function allow()
     {
@@ -822,7 +852,7 @@ class Widget_Abstract_Contents extends Widget_Abstract
                 /** 对自动关闭反馈功能的支持 */
                 if (('ping' == $permission || 'comment' == $permission) && $this->options->commentsPostTimeout > 0 &&
                 $this->options->commentsAutoClose) {
-                    if ($this->options->gmtTime - $this->created > $this->options->commentsPostTimeout) {
+                    if ($this->options->time - $this->created > $this->options->commentsPostTimeout) {
                         return false;
                     }
                 }
@@ -850,6 +880,35 @@ class Widget_Abstract_Contents extends Widget_Abstract
             $result = array();
 
             foreach ($categories as $category) {
+                $result[] = $link ? '<a href="' . $category['permalink'] . '">'
+                . $category['name'] . '</a>' : $category['name'];
+            }
+
+            echo implode($split, $result);
+        } else {
+            echo $default;
+        }
+    }
+
+    /**
+     * 输出文章多级分类
+     *
+     * @access public
+     * @param string $split 多个分类之间分隔符
+     * @param boolean $link 是否输出链接
+     * @param string $default 如果没有则输出
+     * @return void
+     */
+    public function directory($split = '/', $link = true, $default = NULL)
+    {
+        $category = $this->categories[0];
+        $directory = $this->widget('Widget_Metas_Category_List')->getAllParents($category['mid']);
+        $directory[] = $category;
+
+        if ($directory) {
+            $result = array();
+
+            foreach ($directory as $category) {
                 $result[] = $link ? '<a href="' . $category['permalink'] . '">'
                 . $category['name'] . '</a>' : $category['name'];
             }
@@ -896,4 +955,47 @@ class Widget_Abstract_Contents extends Widget_Abstract
     {
         echo $this->author->{$item};
     }
+
+    /**
+     * autoP 
+     * 
+     * @param mixed $text 
+     * @access public
+     * @return string
+     */
+    public function autoP($text)
+    {
+        $html = $this->pluginHandle(__CLASS__)->trigger($parsed)->autoP($text);
+
+        if (!$parsed) {
+            static $parser;
+
+            if (empty($parser)) {
+                $parser = new AutoP();
+            }
+
+            $html = $parser->parse($text);
+        }
+
+        return $html;
+    }
+
+    /**
+     * markdown  
+     * 
+     * @param mixed $text 
+     * @access public
+     * @return string
+     */
+    public function markdown($text)
+    {
+        $html = $this->pluginHandle(__CLASS__)->trigger($parsed)->markdown($text);
+
+        if (!$parsed) {
+            $html = Markdown::convert($text);
+        }
+
+        return $html;
+    }
 }
+

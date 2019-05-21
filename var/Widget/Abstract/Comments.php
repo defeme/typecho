@@ -1,4 +1,5 @@
 <?php
+if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 /**
  * Typecho Blog Platform
  *
@@ -111,8 +112,8 @@ class Widget_Abstract_Comments extends Widget_Abstract
 
         $text = $this->pluginHandle(__CLASS__)->trigger($plugged)->content($text, $this);
         if (!$plugged) {
-            $text = $this->options->commentsMarkdown ? MarkdownExtraExtended::defaultTransform($text)
-                : Typecho_Common::cutParagraph($text);
+            $text = $this->options->commentsMarkdown ? $this->markdown($text)
+                : $this->autoP($text);
         }
 
         $text = $this->pluginHandle(__CLASS__)->contentEx($text, $this);
@@ -166,15 +167,15 @@ class Widget_Abstract_Comments extends Widget_Abstract
         /** 构建插入结构 */
         $insertStruct = array(
             'cid'       =>  $comment['cid'],
-            'created'   =>  empty($comment['created']) ? $this->options->gmtTime : $comment['created'],
-            'author'    =>  empty($comment['author']) ? NULL : $comment['author'],
+            'created'   =>  empty($comment['created']) ? $this->options->time : $comment['created'],
+            'author'    =>  !isset($comment['author']) || strlen($comment['author']) === 0 ? NULL : $comment['author'],
             'authorId'  =>  empty($comment['authorId']) ? 0 : $comment['authorId'],
             'ownerId'   =>  empty($comment['ownerId']) ? 0 : $comment['ownerId'],
-            'mail'      =>  empty($comment['mail']) ? NULL : $comment['mail'],
-            'url'       =>  empty($comment['url']) ? NULL : $comment['url'],
-            'ip'        =>  empty($comment['ip']) ? $this->request->getIp() : $comment['ip'],
-            'agent'     =>  empty($comment['agent']) ? $_SERVER["HTTP_USER_AGENT"] : $comment['agent'],
-            'text'      =>  empty($comment['text']) ? NULL : $comment['text'],
+            'mail'      =>  !isset($comment['mail']) || strlen($comment['mail']) === 0 ? NULL : $comment['mail'],
+            'url'       =>  !isset($comment['url']) || strlen($comment['url']) === 0 ? NULL : $comment['url'],
+            'ip'        =>  !isset($comment['ip']) || strlen($comment['ip']) === 0 ? $this->request->getIp() : $comment['ip'],
+            'agent'     =>  !isset($comment['agent']) || strlen($comment['agent']) === 0 ? $_SERVER["HTTP_USER_AGENT"] : $comment['agent'],
+            'text'      =>  !isset($comment['text']) || strlen($comment['text']) === 0 ? NULL : $comment['text'],
             'type'      =>  empty($comment['type']) ? 'comment' : $comment['type'],
             'status'    =>  empty($comment['status']) ? 'approved' : $comment['status'],
             'parent'    =>  empty($comment['parent']) ? 0 : $comment['parent'],
@@ -182,6 +183,11 @@ class Widget_Abstract_Comments extends Widget_Abstract
 
         if (!empty($comment['coid'])) {
             $insertStruct['coid'] = $comment['coid'];
+        }
+
+        /** 过长的客户端字符串要截断 */
+        if (Typecho_Common::strLen($insertStruct['agent']) > 511) {
+            $insertStruct['agent'] = Typecho_Common::subStr($insertStruct['agent'], 0, 511, '');
         }
 
         /** 首先插入部分数据 */
@@ -219,10 +225,10 @@ class Widget_Abstract_Comments extends Widget_Abstract
 
         /** 构建插入结构 */
         $preUpdateStruct = array(
-            'author'    =>  empty($comment['author']) ? NULL : $comment['author'],
-            'mail'      =>  empty($comment['mail']) ? NULL : $comment['mail'],
-            'url'       =>  empty($comment['url']) ? NULL : $comment['url'],
-            'text'      =>  empty($comment['text']) ? NULL : $comment['text'],
+            'author'    =>  !isset($comment['author']) || strlen($comment['author']) === 0 ? NULL : $comment['author'],
+            'mail'      =>  !isset($comment['mail']) || strlen($comment['mail']) === 0 ? NULL : $comment['mail'],
+            'url'       =>  !isset($comment['url']) || strlen($comment['url']) === 0 ? NULL : $comment['url'],
+            'text'      =>  !isset($comment['text']) || strlen($comment['text']) === 0 ? NULL : $comment['text'],
             'status'    =>  empty($comment['status']) ? 'approved' : $comment['status'],
         );
 
@@ -393,31 +399,7 @@ class Widget_Abstract_Comments extends Widget_Abstract
             
             $this->pluginHandle(__CLASS__)->trigger($plugged)->gravatar($size, $rating, $default, $this);
             if (!$plugged) {
-            
-                if (!empty($this->mail)) {
-                    $mailHash = md5(strtolower($this->mail));
-                }
-                
-                if ($this->request->isSecure()) {
-                    $host = 'https://secure.gravatar.com';
-                } else {
-                    if (empty($this->mail)) {
-                        $host = 'http://0.gravatar.com';
-                    } else {
-                        $host = sprintf( "http://%d.gravatar.com", (hexdec($mailHash{0}) % 2));
-                    }
-                }
-                
-                $url = $host . '/avatar/';
-                
-                if (!empty($this->mail)) {
-                    $url .= $mailHash;
-                }
-                
-                $url .= '?s=' . $size;
-                $url .= '&amp;r=' . $rating;
-                $url .= '&amp;d=' . $default;
-            
+                $url = Typecho_Common::gravatarUrl($this->mail, $size, $rating, $default, $this->request->isSecure());
                 echo '<img class="avatar" src="' . $url . '" alt="' .
                 $this->author . '" width="' . $size . '" height="' . $size . '" />';
             }
@@ -436,4 +418,47 @@ class Widget_Abstract_Comments extends Widget_Abstract
     {
         echo Typecho_Common::subStr(strip_tags($this->content), 0, $length, $trim);
     }
+
+    /**
+     * autoP 
+     * 
+     * @param mixed $text 
+     * @access public
+     * @return string
+     */
+    public function autoP($text)
+    {
+        $html = $this->pluginHandle(__CLASS__)->trigger($parsed)->autoP($text);
+
+        if (!$parsed) {
+            static $parser;
+
+            if (empty($parser)) {
+                $parser = new AutoP();
+            }
+
+            $html = $parser->parse($text);
+        }
+
+        return $html;
+    }
+
+    /**
+     * markdown  
+     * 
+     * @param mixed $text 
+     * @access public
+     * @return string
+     */
+    public function markdown($text)
+    {
+        $html = $this->pluginHandle(__CLASS__)->trigger($parsed)->markdown($text);
+
+        if (!$parsed) {
+            $html = Markdown::convert($text);
+        }
+
+        return $html;
+    }
 }
+

@@ -1,3 +1,4 @@
+<?php if(!defined('__TYPECHO_ADMIN__')) exit; ?>
 <script>
 $(document).ready(function () {
     // 自定义字段
@@ -9,6 +10,7 @@ $(document).ready(function () {
             btn.removeClass('i-caret-down').addClass('i-caret-right');
         }
         $(this).parent().toggleClass('fold');
+        return false;
     });
 
     function attachDeleteEvent (el) {
@@ -17,6 +19,8 @@ $(document).ready(function () {
                 $(this).parents('tr').fadeOut(function () {
                     $(this).remove();
                 });
+
+                $(this).parents('form').trigger('field');
             }
         });
     }
@@ -33,8 +37,12 @@ $(document).ready(function () {
                 + '<option value="float"><?php _e('小数'); ?></option>'
                 + '</select></td>'
                 + '<td><textarea name="fieldValues[]" placeholder="<?php _e('字段值'); ?>" class="text-s w-100" rows="2"></textarea></td>'
-                + '<td><button type="button" class="btn-xs"><?php _e('删除'); ?></button></td></tr>',
+                + '<td><button type="button" class="btn btn-xs"><?php _e('删除'); ?></button></td></tr>',
             el = $(html).hide().appendTo('#custom-field table tbody').fadeIn();
+
+            $(':input', el).bind('input change', function () {
+                $(this).parents('form').trigger('field');
+            });
 
         attachDeleteEvent(el);
     });

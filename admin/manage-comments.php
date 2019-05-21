@@ -10,7 +10,7 @@ $isAllComments = ('on' == $request->get('__typecho_all_comments') || 'on' == Typ
 <div class="main">
     <div class="body container">
         <?php include 'page-title.php'; ?>
-        <div class="colgroup typecho-page-main" role="main">
+        <div class="row typecho-page-main" role="main">
             <div class="col-mb-12 typecho-list">
                 <div class="clearfix">
                     <ul class="typecho-option-tabs right">
@@ -48,38 +48,38 @@ $isAllComments = ('on' == $request->get('__typecho_all_comments') || 'on' == Typ
                 <div class="typecho-list-operate clearfix">
                     <form method="get">
                         <div class="operate">
-                            <input type="checkbox" class="typecho-table-select-all" />
-                        <div class="btn-group btn-drop">
-                        <button class="dropdown-toggle btn-s" type="button" href="">选中项 <i class="i-caret-down"></i></button>
-                        <ul class="dropdown-menu">
-                            <li><a href="<?php $options->index('/action/comments-edit?do=approved'); ?>"><?php _e('通过'); ?></a></li>
-                            <li><a href="<?php $options->index('/action/comments-edit?do=waiting'); ?>"><?php _e('待审核'); ?></a></li>
-                            <li><a href="<?php $options->index('/action/comments-edit?do=spam'); ?>"><?php _e('标记垃圾'); ?></a></li>
-                            <li><a lang="<?php _e('你确认要删除这些评论吗?'); ?>" href="<?php $options->index('/action/comments-edit?do=delete'); ?>"><?php _e('删除'); ?></a></li>
+                            <label><i class="sr-only"><?php _e('全选'); ?></i><input type="checkbox" class="typecho-table-select-all" /></label>
+                            <div class="btn-group btn-drop">
+                            <button class="btn dropdown-toggle btn-s" type="button"><i class="sr-only"><?php _e('操作'); ?></i><?php _e('选中项'); ?> <i class="i-caret-down"></i></button>
+                            <ul class="dropdown-menu">
+                                <li><a href="<?php $security->index('/action/comments-edit?do=approved'); ?>"><?php _e('通过'); ?></a></li>
+                                <li><a href="<?php $security->index('/action/comments-edit?do=waiting'); ?>"><?php _e('待审核'); ?></a></li>
+                                <li><a href="<?php $security->index('/action/comments-edit?do=spam'); ?>"><?php _e('标记垃圾'); ?></a></li>
+                                <li><a lang="<?php _e('你确认要删除这些评论吗?'); ?>" href="<?php $security->index('/action/comments-edit?do=delete'); ?>"><?php _e('删除'); ?></a></li>
+                            </ul>
                             <?php if('spam' == $request->get('status')): ?>
-                            <li><a lang="<?php _e('你确认要删除所有垃圾评论吗?'); ?>" href="<?php $options->index('/action/comments-edit?do=delete-spam'); ?>"><?php _e('删除所有垃圾评论'); ?></a></li>
+                                <button lang="<?php _e('你确认要删除所有垃圾评论吗?'); ?>" class="btn btn-s btn-warn btn-operate" href="<?php $security->index('/action/comments-edit?do=delete-spam'); ?>"><?php _e('删除所有垃圾评论'); ?></button>
                             <?php endif; ?>
-                        </ul>
-                        </div>
+                            </div>
                         </div>
                         <div class="search" role="search">
-                        <?php if ('' != $request->keywords || '' != $request->category): ?>
-                        <a href="<?php $options->adminUrl('manage-comments.php' 
-                        . (isset($request->status) || isset($request->cid) ? '?' .
-                        (isset($request->status) ? 'status=' . htmlspecialchars($request->get('status')) : '') .
-                        (isset($request->cid) ? (isset($request->status) ? '&' : '') . 'cid=' . htmlspecialchars($request->get('cid')) : '') : '')); ?>"><?php _e('&laquo; 取消筛选'); ?></a>
-                        <?php endif; ?>
-                        <input type="text" class="text-s" placeholder="<?php _e('请输入关键字'); ?>" value="<?php echo htmlspecialchars($request->keywords); ?>"<?php if ('' == $request->keywords): ?> onclick="value='';name='keywords';" <?php else: ?> name="keywords"<?php endif; ?>/>
-                        <?php if(isset($request->status)): ?>
-                            <input type="hidden" value="<?php echo htmlspecialchars($request->get('status')); ?>" name="status" />
-                        <?php endif; ?>
-                        <?php if(isset($request->cid)): ?>
-                            <input type="hidden" value="<?php echo htmlspecialchars($request->get('cid')); ?>" name="cid" />
-                        <?php endif; ?>
-                        <button type="submit" class="btn-s"><?php _e('筛选'); ?></button>
+                            <?php if ('' != $request->keywords || '' != $request->category): ?>
+                            <a href="<?php $options->adminUrl('manage-comments.php' 
+                            . (isset($request->status) || isset($request->cid) ? '?' .
+                            (isset($request->status) ? 'status=' . htmlspecialchars($request->get('status')) : '') .
+                            (isset($request->cid) ? (isset($request->status) ? '&' : '') . 'cid=' . htmlspecialchars($request->get('cid')) : '') : '')); ?>"><?php _e('&laquo; 取消筛选'); ?></a>
+                            <?php endif; ?>
+                            <input type="text" class="text-s" placeholder="<?php _e('请输入关键字'); ?>" value="<?php echo htmlspecialchars($request->keywords); ?>"<?php if ('' == $request->keywords): ?> onclick="value='';name='keywords';" <?php else: ?> name="keywords"<?php endif; ?>/>
+                            <?php if(isset($request->status)): ?>
+                                <input type="hidden" value="<?php echo htmlspecialchars($request->get('status')); ?>" name="status" />
+                            <?php endif; ?>
+                            <?php if(isset($request->cid)): ?>
+                                <input type="hidden" value="<?php echo htmlspecialchars($request->get('cid')); ?>" name="cid" />
+                            <?php endif; ?>
+                            <button type="submit" class="btn btn-s"><?php _e('筛选'); ?></button>
                         </div>
                     </form>
-                </div>
+                </div><!-- end .typecho-list-operate -->
                 
                 <form method="post" name="manage_comments" class="operate-form">
                 <div class="typecho-table-wrap">
@@ -112,7 +112,7 @@ $isAllComments = ('on' == $request->get('__typecho_all_comments') || 'on' == Typ
                             'text'      =>  $comments->text
                         );
 
-                        echo htmlspecialchars(json_encode($comment));
+                        echo htmlspecialchars(Json::encode($comment));
                         ?>">
                             <td valign="top">
                                 <input type="checkbox" value="<?php $comments->coid(); ?>" name="coid[]"/>
@@ -147,28 +147,28 @@ $isAllComments = ('on' == $request->get('__typecho_all_comments') || 'on' == Typ
                                     <?php if('approved' == $comments->status): ?>
                                     <span class="weak"><?php _e('通过'); ?></span>
                                     <?php else: ?>
-                                    <a href="<?php $options->index('/action/comments-edit?do=approved&coid=' . $comments->coid); ?>" class="operate-approved"><?php _e('通过'); ?></a>
+                                    <a href="<?php $security->index('/action/comments-edit?do=approved&coid=' . $comments->coid); ?>" class="operate-approved"><?php _e('通过'); ?></a>
                                     <?php endif; ?>
                                     
                                     <?php if('waiting' == $comments->status): ?>
                                     <span class="weak"><?php _e('待审核'); ?></span>
                                     <?php else: ?>
-                                    <a href="<?php $options->index('/action/comments-edit?do=waiting&coid=' . $comments->coid); ?>" class="operate-waiting"><?php _e('待审核'); ?></a>
+                                    <a href="<?php $security->index('/action/comments-edit?do=waiting&coid=' . $comments->coid); ?>" class="operate-waiting"><?php _e('待审核'); ?></a>
                                     <?php endif; ?>
                                     
                                     <?php if('spam' == $comments->status): ?>
                                     <span class="weak"><?php _e('垃圾'); ?></span>
                                     <?php else: ?>
-                                    <a href="<?php $options->index('/action/comments-edit?do=spam&coid=' . $comments->coid); ?>" class="operate-spam"><?php _e('垃圾'); ?></a>
+                                    <a href="<?php $security->index('/action/comments-edit?do=spam&coid=' . $comments->coid); ?>" class="operate-spam"><?php _e('垃圾'); ?></a>
                                     <?php endif; ?>
                                     
-                                    <a href="#<?php $comments->theId(); ?>" rel="<?php $options->index('/action/comments-edit?do=edit&coid=' . $comments->coid); ?>" class="operate-edit"><?php _e('编辑'); ?></a>
+                                    <a href="#<?php $comments->theId(); ?>" rel="<?php $security->index('/action/comments-edit?do=edit&coid=' . $comments->coid); ?>" class="operate-edit"><?php _e('编辑'); ?></a>
 
                                     <?php if('approved' == $comments->status && 'comment' == $comments->type): ?>
-                                    <a href="#<?php $comments->theId(); ?>" rel="<?php $options->index('/action/comments-edit?do=reply&coid=' . $comments->coid); ?>" class="operate-reply"><?php _e('回复'); ?></a>
+                                    <a href="#<?php $comments->theId(); ?>" rel="<?php $security->index('/action/comments-edit?do=reply&coid=' . $comments->coid); ?>" class="operate-reply"><?php _e('回复'); ?></a>
                                     <?php endif; ?>
                                     
-                                    <a lang="<?php _e('你确认要删除%s的评论吗?', htmlspecialchars($comments->author)); ?>" href="<?php $options->index('/action/comments-edit?do=delete&coid=' . $comments->coid); ?>" class="operate-delete"><?php _e('删除'); ?></a>
+                                    <a lang="<?php _e('你确认要删除%s的评论吗?', htmlspecialchars($comments->author)); ?>" href="<?php $security->index('/action/comments-edit?do=delete&coid=' . $comments->coid); ?>" class="operate-delete"><?php _e('删除'); ?></a>
                                 </div>
                             </td>
                         </tr>
@@ -179,21 +179,40 @@ $isAllComments = ('on' == $request->get('__typecho_all_comments') || 'on' == Typ
                         </tr>
                         <?php endif; ?>
                         </tbody>
-                    </table>
-                </div>
+                    </table><!-- end .typecho-list-table -->
+                </div><!-- end .typecho-table-wrap -->
 
-                    <?php if(isset($request->cid)): ?>
-                    <input type="hidden" value="<?php echo htmlspecialchars($request->get('cid')); ?>" name="cid" />
-                    <?php endif; ?>
-                </form>
-
-                <?php if($comments->have()): ?>
-                <ul class="typecho-pager">
-                    <?php $comments->pageNav(); ?>
-                </ul>
+                <?php if(isset($request->cid)): ?>
+                <input type="hidden" value="<?php echo htmlspecialchars($request->get('cid')); ?>" name="cid" />
                 <?php endif; ?>
-            </div>
-        </div>
+                </form><!-- end .operate-form -->
+
+                <div class="typecho-list-operate clearfix">
+                    <form method="get">
+                        <div class="operate">
+                            <label><i class="sr-only"><?php _e('全选'); ?></i><input type="checkbox" class="typecho-table-select-all" /></label>
+                            <div class="btn-group btn-drop">
+                            <button class="btn dropdown-toggle btn-s" type="button"><i class="sr-only"><?php _e('操作'); ?></i><?php _e('选中项'); ?> <i class="i-caret-down"></i></button>
+                            <ul class="dropdown-menu">
+                                <li><a href="<?php $security->index('/action/comments-edit?do=approved'); ?>"><?php _e('通过'); ?></a></li>
+                                <li><a href="<?php $security->index('/action/comments-edit?do=waiting'); ?>"><?php _e('待审核'); ?></a></li>
+                                <li><a href="<?php $security->index('/action/comments-edit?do=spam'); ?>"><?php _e('标记垃圾'); ?></a></li>
+                                <li><a lang="<?php _e('你确认要删除这些评论吗?'); ?>" href="<?php $security->index('/action/comments-edit?do=delete'); ?>"><?php _e('删除'); ?></a></li>
+                            </ul>
+                            <?php if('spam' == $request->get('status')): ?>
+                                <button lang="<?php _e('你确认要删除所有垃圾评论吗?'); ?>" class="btn btn-s btn-warn btn-operate" href="<?php $security->index('/action/comments-edit?do=delete-spam'); ?>"><?php _e('删除所有垃圾评论'); ?></button>
+                            <?php endif; ?>
+                            </div>
+                        </div>
+                        <?php if($comments->have()): ?>
+                        <ul class="typecho-pager">
+                            <?php $comments->pageNav(); ?>
+                        </ul>
+                        <?php endif; ?>
+                    </form>
+                </div><!-- end .typecho-list-operate -->
+            </div><!-- end .typecho-list -->
+        </div><!-- end .typecho-page-main -->
     </div>
 </div>
 <?php
@@ -247,8 +266,8 @@ $(document).ready(function () {
         } else {
             var form = $('<form method="post" action="'
                 + t.attr('rel') + '" class="comment-reply">'
-                + '<p><label for="text" class="visuallyhidden"><?php _e('内容'); ?></label><textarea id="text" name="text" class="w-90 mono" rows="3"></textarea></p>'
-                + '<p><button type="submit" class="btn-s primary"><?php _e('回复'); ?></button> <button type="button" class="btn-s cancel"><?php _e('取消'); ?></button></p>'
+                + '<p><label for="text" class="sr-only"><?php _e('内容'); ?></label><textarea id="text" name="text" class="w-90 mono" rows="3"></textarea></p>'
+                + '<p><button type="submit" class="btn btn-s primary"><?php _e('回复'); ?></button> <button type="button" class="btn btn-s cancel"><?php _e('取消'); ?></button></p>'
                 + '</form>').insertBefore($('.comment-action', td));
 
             $('.cancel', form).click(function () {
@@ -291,8 +310,8 @@ $(document).ready(function () {
                         + '<td valign="top"><form method="post" action="'
                         + t.attr('rel') + '" class="comment-edit-content"><p><label for="' + id + '-text"><?php _e('内容'); ?></label>'
                         + '<textarea name="text" id="' + id + '-text" rows="6" class="w-90 mono"></textarea></p>'
-                        + '<p><button type="submit" class="btn-s primary"><?php _e('提交'); ?></button> '
-                        + '<button type="button" class="btn-s cancel"><?php _e('取消'); ?></button></p></form></td></tr>')
+                        + '<p><button type="submit" class="btn btn-s primary"><?php _e('提交'); ?></button> '
+                        + '<button type="button" class="btn btn-s cancel"><?php _e('取消'); ?></button></p></form></td></tr>')
                         .data('id', id).data('comment', comment).insertAfter(tr);
 
         $('input[name=author]', edit).val(comment.author);
